@@ -97,6 +97,9 @@ void boot_main(void* data) {
     gRandSeed += osGetCount();
     nuGfxDisplayOn();
 
+#ifdef PC_BUILD
+    return; // PC: return to caller, game loop driven externally
+#endif
     while (true) {}
 }
 

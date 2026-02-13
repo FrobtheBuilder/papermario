@@ -4,7 +4,11 @@
 #include "ultra64.h"
 
 // Should be at least the width of a pointer i.e. intptr_t
+#ifdef PC_BUILD
+typedef intptr_t Bytecode;
+#else
 typedef s32 Bytecode;
+#endif
 
 enum {
     EVT_OP_INTERNAL_FETCH,
