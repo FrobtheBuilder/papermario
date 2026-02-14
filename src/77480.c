@@ -5,16 +5,6 @@
 #include "world/partner/watt.h"
 #include "sprite/player.h"
 
-#ifdef PC_BUILD
-#include <stdio.h>
-static void pc_trace_player(const char* msg) {
-    FILE* f = fopen("pc_boot_trace.log", "a");
-    if (f) { fprintf(f, "[load_engine] [update_player] %s\n", msg); fclose(f); }
-}
-#define TRACE_PLAYER(msg) pc_trace_player(msg)
-#else
-#define TRACE_PLAYER(msg) ((void)0)
-#endif
 
 #ifdef SHIFT
 #define inspect_icon_VRAM inspect_icon_VRAM
@@ -620,9 +610,7 @@ void update_player(void) {
     CollisionStatus* collisionStatus = &gCollisionStatus;
     GameStatus* gameStatus;
 
-    TRACE_PLAYER("update_partner_timers");
     update_partner_timers();
-    TRACE_PLAYER("update_partner_timers done");
 
     if ((playerStatus->timeInAir > 100) || (playerStatus->pos.y < -2000.0f)) {
         if (!(playerStatus->animFlags & PA_FLAG_NO_OOB_RESPAWN)) {
@@ -651,13 +639,10 @@ void update_player(void) {
     collisionStatus->curInspect = NO_COLLIDER;
     collisionStatus->floorBelow = true;
 
-    TRACE_PLAYER("update_player_input");
     update_player_input();
     playerStatus->flags &= ~PS_FLAG_SPECIAL_LAND;
-    TRACE_PLAYER("update_player_blink");
     update_player_blink();
 
-    TRACE_PLAYER("phys_update");
     if (playerStatus->flags & PS_FLAG_NO_STATIC_COLLISION) {
         phys_update_action_state();
         if (!check_player_action_debug()) {
@@ -668,7 +653,6 @@ void update_player(void) {
     } else {
         phys_update_lava_reset();
     }
-    TRACE_PLAYER("phys_update done");
 
     if (playerStatus->flags & PS_FLAG_CUTSCENE_MOVEMENT) {
         playerStatus->moveFrames--;
@@ -679,11 +663,9 @@ void update_player(void) {
     }
 
     if (!(playerStatus->animFlags & PA_FLAG_USING_PEACH_PHYSICS)) {
-        TRACE_PLAYER("handle_floor_behavior");
         handle_floor_behavior();
     }
 
-    TRACE_PLAYER("player_update_sprite");
     player_update_sprite();
 
     gameStatus = gGameStatusPtr;
@@ -692,13 +674,11 @@ void update_player(void) {
     gameStatus->playerPos.z = playerStatus->pos.z;
     gameStatus->playerYaw = playerStatus->curYaw;
 
-    TRACE_PLAYER("check_input_open_menus");
     check_input_open_menus();
     if (!(playerStatus->animFlags & PA_FLAG_USING_PEACH_PHYSICS)) {
         check_input_status_bar();
     }
 
-    TRACE_PLAYER("update_player_shadow");
     update_player_shadow();
 
     check_for_interactables();
@@ -736,11 +716,8 @@ void phys_update_standard(void) {
     PlayerStatus* playerStatus = &gPlayerStatus;
     s32 flags;
 
-    TRACE_PLAYER("phys_update_standard: check_input_use_partner");
     check_input_use_partner();
-    TRACE_PLAYER("phys_update_standard: phys_update_action_state");
     phys_update_action_state();
-    TRACE_PLAYER("phys_update_standard: phys_update_action_state done");
 
     if (!(playerStatus->flags & PS_FLAG_FLYING)) {
         if (playerStatus->flags & PS_FLAG_JUMPING) {
@@ -756,7 +733,6 @@ void phys_update_standard(void) {
 
     check_input_midair_jump();
 
-    TRACE_PLAYER("phys_update_standard: collision checks");
     if (playerStatus->actionState != ACTION_STATE_SLIDING) {
         collision_main_lateral();
         collision_check_player_overlaps();
@@ -771,7 +747,6 @@ void phys_update_standard(void) {
             phys_main_collision_below();
         }
     }
-    TRACE_PLAYER("phys_update_standard: done");
 
     if (playerStatus->animFlags & PA_FLAG_WATT_IN_HANDS) {
         world_watt_sync_held_position();
@@ -1554,6 +1529,11 @@ void render_player_model(void) {
 }
 
 void appendGfx_player(void* data) {
+#ifdef PC_BUILD
+    // Skip player sprite rendering — sprite data not loaded from ROM yet.
+    // spr_draw_player_sprite will crash on uninitialized sprite sheets.
+    return;
+#endif
     PlayerStatus* playerStatus = &gPlayerStatus;
     Matrix4f sp20, sp60, spA0, spE0;
     f32 temp_f0 = -gCameras[gCurrentCamID].curYaw;
@@ -1617,6 +1597,9 @@ void appendGfx_player(void* data) {
 
 /// Only used when speedy spinning.
 void appendGfx_player_spin(void* data) {
+#ifdef PC_BUILD
+    return;
+#endif
     PlayerStatus* playerStatus = &gPlayerStatus;
     Matrix4f mtx;
     Matrix4f translation;

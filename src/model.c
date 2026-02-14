@@ -6,6 +6,7 @@
 #include "model_clear_render_tasks.h"
 #include "nu/nusys.h"
 
+
 // models are rendered in two stages by the RDP:
 // (1) main and aux textures are combined in the color combiner
 // (2) the combined texture is blended with either tint or fog by the blender

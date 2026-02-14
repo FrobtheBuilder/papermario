@@ -24,9 +24,17 @@ void state_init_enter_demo(void) {
 }
 
 void state_init_enter_world(void) {
+#ifdef PC_BUILD
+    FILE* f = fopen("pc_boot_trace.log", "a");
+    if (f) { fprintf(f, "[state_enter_world] INIT called\n"); fclose(f); }
+#endif
     gLoadedFromFileSelect = true;
     set_map_transition_effect(TRANSITION_ENTER_WORLD);
     init_enter_world_shared();
+#ifdef PC_BUILD
+    f = fopen("pc_boot_trace.log", "a");
+    if (f) { fprintf(f, "[state_enter_world] INIT complete\n"); fclose(f); }
+#endif
 }
 
 void init_enter_world_shared(void) {
@@ -44,6 +52,18 @@ void init_enter_world_shared(void) {
 }
 
 void state_step_enter_world(void) {
+#ifdef PC_BUILD
+    static int callCount = 0;
+    if ((callCount % 60) == 0) {
+        FILE* f = fopen("pc_boot_trace.log", "a");
+        if (f) {
+            fprintf(f, "[state_enter_world] step called, state=%d time=%d\n",
+                    gMapTransitionState, gMapTransitionStateTime);
+            fclose(f);
+        }
+    }
+    callCount++;
+#endif
     switch (gMapTransitionState) {
         case ENTER_WORLD_LOAD_MAP:
             if (gMapTransitionStateTime != 0) {
@@ -79,10 +99,16 @@ void state_step_enter_world(void) {
                 gMapTransitionStateTime--;
                 break;
             }
+#ifdef PC_BUILD
+            // Skip script wait on PC - scripts may depend on uninitialized systems
+            gOverrideFlags &= ~GLOBAL_OVERRIDES_DISABLE_DRAW_FRAME;
+            gMapTransitionState++;
+#else
             if (!does_script_exist(gGameStatusPtr->mainScriptID)) {
                 gOverrideFlags &= ~GLOBAL_OVERRIDES_DISABLE_DRAW_FRAME;
                 gMapTransitionState++;
             }
+#endif
             break;
         case ENTER_WORLD_FADE_IN:
             update_npcs();

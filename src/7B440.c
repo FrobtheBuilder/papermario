@@ -184,6 +184,11 @@ void game_input_to_move_vector(f32* outAngle, f32* outMagnitude) {
 
 void calculate_camera_yinterp_rate(void) {
     Shadow* shadow = get_shadow_by_index(gPlayerStatus.shadowID);
+#ifdef PC_BUILD
+    if (shadow == NULL) {
+        return;
+    }
+#endif
     f32 x = shadow->rot.x + 180.0;
     f32 z = shadow->rot.z + 180.0;
     Camera* camera = &gCameras[CAM_DEFAULT];

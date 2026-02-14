@@ -176,7 +176,13 @@ void gfxRetrace_Callback(s32 gfxTaskNum) {
     } else {
         D_80073E0A ^= 1;
         if (D_80073E0A == 0) {
+#ifdef PC_BUILD
+            pc_trace("[gfxRetrace] about to call step_game_loop");
+#endif
             step_game_loop();
+#ifdef PC_BUILD
+            pc_trace("[gfxRetrace] step_game_loop returned");
+#endif
             D_80073E08 = 1;
 
             if (gfxTaskNum < 3) {

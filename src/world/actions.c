@@ -140,7 +140,12 @@ AnimID* PeachDisguiseExtraAnims[] = {
     [PEACH_DISGUISE_CLUBBA] ClubbaDisguiseExtraAnims
 };
 
+#ifdef PC_BUILD
+// On PC, action overlays are linked directly into the DLL — no DMA needed
+#define ACTION_FILE(name) NULL, NULL
+#else
 #define ACTION_FILE(name) world_action_##name##_ROM_START, world_action_##name##_ROM_END
+#endif
 
 Action PlayerActionsTable[] = {
     [ACTION_STATE_IDLE]                 { action_update_idle, ACTION_FILE(idle), true },

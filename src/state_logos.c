@@ -68,7 +68,12 @@ void state_init_logos(void) {
     general_heap_create();
     gGameStatusPtr->startupState = LOGOS_STATE_N64_FADE_IN;
     gGameStatusPtr->logoTime = 0;
+#ifdef PC_BUILD
+    // Skip logos on PC - title screen demo needs full world functionality we haven't implemented yet
+    gGameStatusPtr->skipLogos = true;
+#else
     gGameStatusPtr->skipLogos = false;
+#endif
     startup_set_fade_screen_alpha(255);
     startup_set_fade_screen_color(0);
 
@@ -153,7 +158,17 @@ void state_step_logos(void) {
         if (startup_fade_screen_out(10)) {
             set_curtain_scale(1.0f);
             set_curtain_fade(0.0f);
+#ifdef PC_BUILD
+            // Load map and jump straight to WORLD mode (skip ENTER_WORLD transition)
+            gGameStatusPtr->areaID = 0;  // AREA_KMR (Goomba Region)
+            gGameStatusPtr->mapID = 20;  // kmr_20
+            gGameStatusPtr->entryID = 0;
+            gGameStatusPtr->context = CONTEXT_WORLD;
+            load_map_by_IDs(0, 20, 1);  // Load kmr_20 directly
+            set_game_mode(GAME_MODE_WORLD);
+#else
             set_game_mode(GAME_MODE_TITLE_SCREEN);
+#endif
         }
     } else {
 #if VERSION_JP
@@ -272,14 +287,7 @@ void state_step_logos(void) {
 }
 
 void state_drawUI_logos(void) {
-#ifdef PC_BUILD
-    extern void pc_trace_ml(const char*);
-    pc_trace_ml("[state_logos] state_drawUI_logos entered (PC_BUILD)");
-#endif
     appendGfx_intro_logos();
-#ifdef PC_BUILD
-    pc_trace_ml("[state_logos] appendGfx_intro_logos returned OK");
-#endif
 }
 
 void appendGfx_intro_logos(void) {

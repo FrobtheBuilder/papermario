@@ -160,20 +160,11 @@ void render_game_mode_frontUI(void) {
     GameMode* gameMode = gMainGameMode;
     s32 i;
 
-#ifdef PC_BUILD
-    extern void pc_trace_ml(const char*);
-    char _rgmfBuf[128];
-#endif
-
     for (i = 0; i < ARRAY_COUNT(gMainGameMode); i++, gameMode++) {
         if (gameMode->flags != MODE_FLAG_NONE) {
             if (!(gameMode->flags & MODE_FLAG_4)) {
                 if (!(gameMode->flags & MODE_FLAG_STEP_NOT_DONE)) {
                     if (gameMode->flags & MODE_FLAG_RENDER_AUX_SET) {
-#ifdef PC_BUILD
-                        snprintf(_rgmfBuf, sizeof(_rgmfBuf), "[render_gm_frontUI] loop1 i=%d flags=0x%x renderAux=%p", i, (int)gameMode->flags, (void*)(uintptr_t)gameMode->renderAux);
-                        pc_trace_ml(_rgmfBuf);
-#endif
                         gameMode->renderAux();
                     }
                 }
@@ -188,17 +179,10 @@ void render_game_mode_frontUI(void) {
             if (!(gameMode->flags & MODE_FLAG_4)) {
                 if (!(gameMode->flags & MODE_FLAG_STEP_NOT_DONE)) {
                     if (gameMode->flags & MODE_FLAG_10) {
-#ifdef PC_BUILD
-                        snprintf(_rgmfBuf, sizeof(_rgmfBuf), "[render_gm_frontUI] loop2 i=%d flags=0x%x render=%p", i, (int)gameMode->flags, (void*)(uintptr_t)gameMode->render);
-                        pc_trace_ml(_rgmfBuf);
-#endif
                         gameMode->render();
                     }
                 }
             }
         }
     }
-#ifdef PC_BUILD
-    pc_trace_ml("[render_gm_frontUI] done");
-#endif
 }

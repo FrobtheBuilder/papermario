@@ -4,6 +4,7 @@
 #include "hud_element.h"
 #include "camera.h"
 
+
 void render_models(void);
 void execute_render_tasks(void);
 void render_item_entities(void);
@@ -116,7 +117,6 @@ void render_frame(s32 isSecondPass) {
         }
 
         gCurrentCamID = camID;
-
         if (camera->fpDoPreRender != nullptr) {
             camera->fpDoPreRender(camera);
         } else {

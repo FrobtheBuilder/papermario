@@ -8,6 +8,17 @@
 #include "model.h"
 #include "gcc/string.h"
 
+#ifdef PC_BUILD
+#include <stdio.h>
+static void pc_trace_world(const char* msg) {
+    FILE* f = fopen("pc_boot_trace.log", "a");
+    if (f) { fprintf(f, "[load_engine] [world] %s\n", msg); fclose(f); }
+}
+#define TRACE_WORLD(msg) pc_trace_world(msg)
+#else
+#define TRACE_WORLD(msg) ((void)0)
+#endif
+
 s32 WorldReverbModeMapping[] = { 0, 1, 2, 3 };
 
 //TODO possible data split here
@@ -86,6 +97,14 @@ void load_map_by_IDs(s16 areaID, s16 mapID, s16 loadType) {
     char texStr[17];
     s32 decompressedSize;
 
+#ifdef PC_BUILD
+    {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "load_map_by_IDs(area=%d, map=%d, loadType=%d)", areaID, mapID, loadType);
+        TRACE_WORLD(buf);
+    }
+#endif
+
     sfx_stop_env_sounds();
     gOverrideFlags &= ~GLOBAL_OVERRIDES_40;
     gOverrideFlags &= ~GLOBAL_OVERRIDES_ENABLE_FLOOR_REFLECTION;
@@ -95,6 +114,7 @@ void load_map_by_IDs(s16 areaID, s16 mapID, s16 loadType) {
 #if !VERSION_IQUE
     load_obfuscation_shims();
 #endif
+    TRACE_WORLD("shim_general_heap_create_obfuscated");
     shim_general_heap_create_obfuscated();
 
 #if VERSION_JP
@@ -122,6 +142,17 @@ void load_map_by_IDs(s16 areaID, s16 mapID, s16 loadType) {
 
     mapConfig = &gAreas[areaID].maps[mapID];
 
+#ifdef PC_BUILD
+    {
+        char buf[256];
+        snprintf(buf, sizeof(buf), "mapConfig=%p id=%s bgName=%s dmaStart=%p",
+                 (void*)mapConfig, mapConfig->id ? mapConfig->id : "NULL",
+                 mapConfig->bgName ? mapConfig->bgName : "NULL",
+                 mapConfig->dmaStart);
+        TRACE_WORLD(buf);
+    }
+#endif
+
     sprintf(wMapShapeName, "%s_shape", mapConfig->id);
     sprintf(wMapHitName, "%s_hit", mapConfig->id);
     strcpy(texStr, mapConfig->id);
@@ -132,33 +163,68 @@ void load_map_by_IDs(s16 areaID, s16 mapID, s16 loadType) {
     if (mapConfig->bgName != nullptr) {
         strcpy(wMapBgName, mapConfig->bgName);
     }
+    TRACE_WORLD("load_map_script_lib");
     load_map_script_lib();
 
     if (mapConfig->dmaStart != nullptr) {
+        TRACE_WORLD("dma_copy for map DMA overlay");
         dma_copy(mapConfig->dmaStart, mapConfig->dmaEnd, mapConfig->dmaDest);
     }
 
+    TRACE_WORLD("copying mapSettings");
     gMapSettings = *mapConfig->settings;
 
     mapSettings = &gMapSettings;
     if (mapConfig->init != nullptr) {
+        TRACE_WORLD("calling mapConfig->init()");
         skipLoadingAssets = mapConfig->init();
     }
 
+#ifdef PC_BUILD
+    {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "skipLoadingAssets=%d", skipLoadingAssets);
+        TRACE_WORLD(buf);
+    }
+#endif
+
     if (!skipLoadingAssets) {
         ShapeFile* shapeFile = &gMapShapeData;
+        TRACE_WORLD("load_asset_by_name for shape");
         void* yay0Asset = load_asset_by_name(wMapShapeName, &decompressedSize);
 
+#ifdef PC_BUILD
+        {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "yay0Asset=%p decompressedSize=%d", yay0Asset, decompressedSize);
+            TRACE_WORLD(buf);
+        }
+#endif
+
+        TRACE_WORLD("decode_yay0");
         decode_yay0(yay0Asset, shapeFile);
         general_heap_free(yay0Asset);
 
+#ifdef PC_BUILD
+        // Shape file binary uses N64 32-bit struct layout with big-endian pointers.
+        // PC has 64-bit pointers so the struct layout doesn't match.
+        // TODO: Implement proper shape file deserialization (32-bit BE → 64-bit LE).
+        // For now, null out the model tree to skip 3D geometry loading.
+        TRACE_WORLD("shape file model tree SKIPPED (needs 32→64-bit deserialization)");
+        mapSettings->modelTreeRoot = NULL;
+        mapSettings->modelNameList = NULL;
+        mapSettings->colliderNameList = NULL;
+        mapSettings->zoneNameList = NULL;
+#else
         mapSettings->modelTreeRoot = shapeFile->header.root;
         mapSettings->modelNameList = shapeFile->header.modelNames;
         mapSettings->colliderNameList = shapeFile->header.colliderNames;
         mapSettings->zoneNameList = shapeFile->header.zoneNames;
+#endif
     }
 
     if (mapConfig->bgName != nullptr) {
+        TRACE_WORLD("load_map_bg");
         load_map_bg(wMapBgName);
     }
 
@@ -170,7 +236,9 @@ void load_map_by_IDs(s16 areaID, s16 mapID, s16 loadType) {
     sfx_clear_env_sounds(0);
     clear_worker_list();
     clear_script_list();
+    TRACE_WORLD("create_cameras");
     create_cameras();
+    TRACE_WORLD("spr_init_sprites");
     spr_init_sprites(gGameStatusPtr->playerSpriteSet);
     clear_animator_list();
     clear_entity_models();
@@ -186,35 +254,60 @@ void load_map_by_IDs(s16 areaID, s16 mapID, s16 loadType) {
     }
 
     if (!skipLoadingAssets) {
+        TRACE_WORLD("initialize_collision");
         initialize_collision();
+        TRACE_WORLD("load_map_hit_asset");
         load_map_hit_asset();
     }
 
     reset_battle_status();
     clear_encounter_status();
+    TRACE_WORLD("clear_entity_data");
     clear_entity_data(true);
     clear_effect_data();
+    TRACE_WORLD("clear_player_status");
     clear_player_status();
+    TRACE_WORLD("player_reset_data");
     player_reset_data();
+    TRACE_WORLD("partner_reset_data");
     partner_reset_data();
+#ifdef PC_BUILD
+    TRACE_WORLD("clear_printers SKIPPED (load_font needs ROM charset)");
+#else
     clear_printers();
+#endif
+    TRACE_WORLD("clear_item_entity_data");
     clear_item_entity_data();
 
     gPlayerStatus.targetYaw = gPlayerStatus.curYaw;
 
+#ifdef PC_BUILD
+    TRACE_WORLD("sfx_set_reverb_mode SKIPPED (audio not ready)");
+#else
     sfx_set_reverb_mode(WorldReverbModeMapping[*(s32*)mapConfig->unk_1C & 0x3]);
     sfx_reset_door_sounds();
+#endif
 
     if (!skipLoadingAssets) {
+        TRACE_WORLD("get_asset_offset for textures");
         s32 texturesOffset = get_asset_offset(wMapTexName, &decompressedSize);
 
         if (mapSettings->modelTreeRoot != nullptr) {
+            TRACE_WORLD("load_data_for_models");
             load_data_for_models(mapSettings->modelTreeRoot, texturesOffset, decompressedSize);
         }
+        TRACE_WORLD("load_data_for_models done");
     }
 
     if (mapSettings->background != nullptr) {
+#ifdef PC_BUILD
+        // Background texture data from ROM is big-endian. Skip texture and use solid fill.
+        TRACE_WORLD("set_background SKIPPED, using solid fill");
+        set_background_size(SCREEN_XMAX - SCREEN_XMIN, SCREEN_YMAX - SCREEN_YMIN,
+            SCREEN_INSET_X, SCREEN_INSET_Y);
+#else
         set_background(mapSettings->background);
+#endif
     } else {
         set_background_size(SCREEN_XMAX - SCREEN_XMIN, SCREEN_YMAX - SCREEN_YMIN,
             SCREEN_INSET_X, SCREEN_INSET_Y);
@@ -272,9 +365,29 @@ void* load_asset_by_name(const char* assetName, u32* decompressedSize) {
     void* ret;
 
     dma_copy((u8*) ASSET_TABLE_FIRST_ENTRY, (u8*) ASSET_TABLE_FIRST_ENTRY + sizeof(AssetHeader), &firstHeader);
+
+#ifdef PC_BUILD
+    // ROM data arrives as raw big-endian bytes via fread. On little-endian PC,
+    // the u32 struct fields need byte-swapping. Name field (char[]) is fine.
+    firstHeader.offset = pc_be32(firstHeader.offset);
+#endif
+
     assetTableBuffer = heap_malloc(firstHeader.offset);
     curAsset = &assetTableBuffer[0];
     dma_copy((u8*) ASSET_TABLE_FIRST_ENTRY, (u8*) ASSET_TABLE_FIRST_ENTRY + firstHeader.offset, assetTableBuffer);
+
+#ifdef PC_BUILD
+    {
+        // Byte-swap all u32 fields in the loaded asset table
+        u32 numEntries = firstHeader.offset / sizeof(AssetHeader);
+        for (u32 i = 0; i < numEntries; i++) {
+            assetTableBuffer[i].offset = pc_be32(assetTableBuffer[i].offset);
+            assetTableBuffer[i].compressedLength = pc_be32(assetTableBuffer[i].compressedLength);
+            assetTableBuffer[i].decompressedLength = pc_be32(assetTableBuffer[i].decompressedLength);
+        }
+    }
+#endif
+
     while (strcmp(curAsset->name, assetName) != 0) {
         curAsset++;
     }
@@ -293,9 +406,26 @@ s32 get_asset_offset(char* assetName, s32* compressedSize) {
     s32 ret;
 
     dma_copy((u8*) ASSET_TABLE_FIRST_ENTRY, (u8*) ASSET_TABLE_FIRST_ENTRY + sizeof(AssetHeader), &firstHeader);
+
+#ifdef PC_BUILD
+    firstHeader.offset = pc_be32(firstHeader.offset);
+#endif
+
     assetTableBuffer = heap_malloc(firstHeader.offset);
     curAsset = &assetTableBuffer[0];
     dma_copy((u8*) ASSET_TABLE_FIRST_ENTRY, (u8*) ASSET_TABLE_FIRST_ENTRY + firstHeader.offset, assetTableBuffer);
+
+#ifdef PC_BUILD
+    {
+        u32 numEntries = firstHeader.offset / sizeof(AssetHeader);
+        for (u32 i = 0; i < numEntries; i++) {
+            assetTableBuffer[i].offset = pc_be32(assetTableBuffer[i].offset);
+            assetTableBuffer[i].compressedLength = pc_be32(assetTableBuffer[i].compressedLength);
+            assetTableBuffer[i].decompressedLength = pc_be32(assetTableBuffer[i].decompressedLength);
+        }
+    }
+#endif
+
     while (strcmp(curAsset->name, assetName) != 0) {
         curAsset++;
     }
@@ -307,12 +437,26 @@ s32 get_asset_offset(char* assetName, s32* compressedSize) {
 
 #define AREA(area, jp_name) { ARRAY_COUNT(area##_maps), area##_maps, "area_" #area, jp_name }
 
+#ifdef PC_BUILD
+// On PC, map DMA overlays are linked directly into the DLL.
+// ROM addresses are not compile-time constants on 64-bit,
+// and we don't need them since the code is already in memory.
+#define MAP(map) \
+    .id = #map, \
+    .settings = &map##_settings, \
+    .dmaStart = NULL, \
+    .dmaEnd = NULL, \
+    .dmaDest = NULL \
+
+#else
 #define MAP(map) \
     .id = #map, \
     .settings = &map##_settings, \
     .dmaStart = map##_ROM_START, \
     .dmaEnd = map##_ROM_END, \
     .dmaDest = map##_VRAM \
+
+#endif
 
 #define MAP_WITH_INIT(map) \
     MAP(map), \

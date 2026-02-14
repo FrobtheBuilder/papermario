@@ -99,6 +99,59 @@ void initialize_collision(void) {
     collision_heap_create();
 }
 
+#ifdef PC_BUILD
+// Byte-swap hit file data from big-endian (ROM) to native little-endian.
+// Hit files have mixed s16 and s32 fields that need individual swapping.
+static void pc_fixup_hit_data(HitFile* data, u32 dataSize) {
+    u8* p = (u8*)data;
+
+    // HitFile header: two u32 offsets
+    data->collisionOffset = pc_be32(data->collisionOffset);
+    data->zoneOffset = pc_be32(data->zoneOffset);
+
+    u32 offsets[2] = { data->collisionOffset, data->zoneOffset };
+    for (s32 section = 0; section < 2; section++) {
+        if (offsets[section] == 0) continue;
+
+        HitFileHeader* hdr = (HitFileHeader*)(p + offsets[section]);
+
+        // Swap HitFileHeader fields
+        hdr->numColliders = pc_be16(hdr->numColliders);
+        hdr->collidersOffset = pc_be32(hdr->collidersOffset);
+        hdr->numVertices = pc_be16(hdr->numVertices);
+        hdr->verticesOffset = pc_be32(hdr->verticesOffset);
+        hdr->boundingBoxesDataSize = pc_be16(hdr->boundingBoxesDataSize);
+        hdr->boundingBoxesOffset = pc_be32(hdr->boundingBoxesOffset);
+
+        // Swap HitAssetCollider array (0x0C bytes each)
+        HitAssetCollider* colliders = (HitAssetCollider*)(p + hdr->collidersOffset);
+        for (s32 i = 0; i < hdr->numColliders; i++) {
+            HitAssetCollider* c = &colliders[i];
+            c->boundingBoxOffset = pc_be16(c->boundingBoxOffset);
+            c->nextSibling = pc_be16(c->nextSibling);
+            c->firstChild = pc_be16(c->firstChild);
+            c->numTriangles = pc_be16(c->numTriangles);
+            c->trianglesOffset = pc_be32(c->trianglesOffset);
+
+            // Swap packed triangle data (s32 array)
+            if (c->trianglesOffset != 0) {
+                pc_bswap32_buf(p + c->trianglesOffset, c->numTriangles * 4);
+            }
+        }
+
+        // Swap vertex data: Vec3s (3 x s16 = 6 bytes each)
+        if (hdr->verticesOffset != 0) {
+            pc_bswap16_buf(p + hdr->verticesOffset, hdr->numVertices * 6);
+        }
+
+        // Swap bounding box data (u32 array)
+        if (hdr->boundingBoxesOffset != 0 && hdr->boundingBoxesDataSize > 0) {
+            pc_bswap32_buf(p + hdr->boundingBoxesOffset, hdr->boundingBoxesDataSize * 4);
+        }
+    }
+}
+#endif
+
 void load_map_hit_asset(void) {
     u32 assetSize;
     MapSettings* map = get_current_map_settings();
@@ -107,6 +160,10 @@ void load_map_hit_asset(void) {
 
     decode_yay0(compressedData, uncompressedData);
     general_heap_free(compressedData);
+
+#ifdef PC_BUILD
+    pc_fixup_hit_data(uncompressedData, assetSize);
+#endif
 
     map->hitAssetCollisionOffset = uncompressedData->collisionOffset;
     map->hitAssetZoneOffset = uncompressedData->zoneOffset;
@@ -159,6 +216,10 @@ void load_battle_hit_asset(const char* hitName) {
 
         decode_yay0(compressedData, uncompressedData);
         general_heap_free(compressedData);
+
+#ifdef PC_BUILD
+        pc_fixup_hit_data(uncompressedData, assetSize);
+#endif
 
         map->hitAssetCollisionOffset = uncompressedData->collisionOffset;
 
