@@ -1695,6 +1695,14 @@ typedef union {
 	Gsettilesize	settilesize;
 	Gloadtlut	loadtlut;
         long long int	force_structure_alignment;
+#ifdef PC_BUILD
+	/* On 64-bit PC, sizeof(Gfx) = 16 (due to Gsetcolor layout + alignment).
+	 * Bytes 8-15 are padding for most commands. We use them to stash the
+	 * full 64-bit pointer that GBI macros truncate to 32 bits via
+	 * (unsigned int) cast. This lets the display list fixup code recover
+	 * the original address without guessing upper bits. */
+	struct { unsigned int _w0; unsigned int _w1; void* _pc_addr; } _pc_ext;
+#endif
 } Gfx;
 
 /*
@@ -1704,12 +1712,21 @@ typedef union {
 /*
  * DMA macros
  */
+#ifdef PC_BUILD
+/* Stash full 64-bit pointer in bytes 8-15 of the 16-byte Gfx element.
+ * This preserves the address that (unsigned int) cast truncates. */
+#define _PC_GFX_STASH(g, addr) ((g)->_pc_ext._pc_addr = (void*)(uintptr_t)(addr))
+#else
+#define _PC_GFX_STASH(g, addr) ((void)0)
+#endif
+
 #define	gDma0p(pkt, c, s, l)						\
 {									\
 	Gfx *_g = (Gfx *)(pkt);						\
 									\
 	_g->words.w0 = _SHIFTL((c), 24, 8) | _SHIFTL((l), 0, 24);	\
 	_g->words.w1 = (unsigned int)(s);				\
+	_PC_GFX_STASH(_g, s);						\
 }
 
 #define	gsDma0p(c, s, l)						\
@@ -1724,6 +1741,7 @@ typedef union {
 	_g->words.w0 = (_SHIFTL((c), 24, 8) | _SHIFTL((p), 16, 8) |	\
 			_SHIFTL((l), 0, 16));				\
 	_g->words.w1 = (unsigned int)(s);				\
+	_PC_GFX_STASH(_g, s);						\
 }
 
 #define	gsDma1p(c, s, l, p)						\
@@ -1739,6 +1757,7 @@ typedef union {
 	_g->words.w0 = (_SHIFTL((c),24,8)|_SHIFTL(((len)-1)/8,19,5)|	\
 			_SHIFTL((ofs)/8,8,8)|_SHIFTL((idx),0,8));	\
 	_g->words.w1 = (unsigned int)(adrs);				\
+	_PC_GFX_STASH(_g, adrs);					\
 }
 #define	gsDma2p(c, adrs, len, idx, ofs)					\
 {{									\
@@ -1776,6 +1795,7 @@ typedef union {
 	_g->words.w0 =							\
 	  _SHIFTL(G_VTX,24,8)|_SHIFTL((n),12,8)|_SHIFTL((v0)+(n),1,7);	\
 	_g->words.w1 = (unsigned int)(v);				\
+	_PC_GFX_STASH(_g, v);						\
 }
 # define	gsSPVertex(v, n, v0)					\
 {{									\
@@ -3006,6 +3026,7 @@ typedef union {
 	_g->words.w0 = _SHIFTL(cmd, 24, 8) | _SHIFTL(fmt, 21, 3) |	\
 		       _SHIFTL(siz, 19, 2) | _SHIFTL((width)-1, 0, 12);	\
 	_g->words.w1 = (unsigned int)(i);				\
+	_PC_GFX_STASH(_g, i);						\
 }
 
 #define	gsSetImage(cmd, fmt, siz, width, i)				\

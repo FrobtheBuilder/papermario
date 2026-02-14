@@ -2209,6 +2209,13 @@ typedef struct WindowStyleCustom {
     /* 0x34 */ Color_RGBA8 color2;
 } WindowStyleCustom; // size = 0x38;
 
+#ifdef PC_BUILD
+// transparent_union attribute doesn't work on modern GCC/Windows.
+// Use intptr_t to match union size (8 bytes on 64-bit for pointer member).
+// int constants (WINDOW_STYLE_20 etc.) implicitly widen to intptr_t.
+typedef intptr_t WindowStyle;
+typedef intptr_t WindowUpdateFunc;
+#else
 typedef union {
     int defaultStyleID;
     WindowStyleCustom* customStyle;
@@ -2219,6 +2226,7 @@ typedef union {
     void (*func)(s32 windowIndex, s32* flags, s32* posX, s32* posY, s32* posZ, f32* scaleX, f32* scaleY,
                                  f32* rotX, f32* rotY, f32* rotZ, s32* darkening, s32* opacity);
 } WindowUpdateFunc TRANSPARENT_UNION;
+#endif
 
 typedef struct MenuWindowBP {
     /* 0x00 */ s8 windowID;

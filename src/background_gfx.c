@@ -14,6 +14,37 @@ Vp D_80074200 = {
     }
 };
 
+#ifdef PC_BUILD
+/*
+ * On 64-bit PC, static initializers with (unsigned int)(&symbol) are not
+ * compile-time constants (pointer-to-int narrowing). Initialize at runtime.
+ */
+Gfx D_80074210[4];
+Gfx D_80074230[5];
+static int s_staticDLsInited = 0;
+
+static void pc_init_static_dls(void) {
+    if (s_staticDLsInited) return;
+    s_staticDLsInited = 1;
+
+    {
+        Gfx* p = D_80074210;
+        gDPSetRenderMode(p++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
+        gDPSetCombineMode(p++, G_CC_SHADE, G_CC_SHADE);
+        gDPSetColorDither(p++, G_CD_BAYER);
+        gSPEndDisplayList(p++);
+    }
+    {
+        Gfx* p = D_80074230;
+        gSPViewport(p++, &D_80074200);
+        gSPClearGeometryMode(p++, G_ZBUFFER | G_SHADE | G_CULL_BOTH | G_FOG | G_LIGHTING | G_TEXTURE_GEN |
+                              G_TEXTURE_GEN_LINEAR | G_LOD | G_SHADING_SMOOTH | G_CLIPPING | 0x0040F9FA);
+        gSPSetGeometryMode(p++, G_ZBUFFER | G_SHADE | G_CULL_BACK | G_SHADING_SMOOTH);
+        gSPTexture(p++, 0, 0, 0, G_TX_RENDERTILE, G_OFF);
+        gSPEndDisplayList(p++);
+    }
+}
+#else
 Gfx D_80074210[] = {
     gsDPSetRenderMode(G_RM_OPA_SURF, G_RM_OPA_SURF2),
     gsDPSetCombineMode(G_CC_SHADE, G_CC_SHADE),
@@ -29,8 +60,12 @@ Gfx D_80074230[] = {
     gsSPTexture(0, 0, 0, G_TX_RENDERTILE, G_OFF),
     gsSPEndDisplayList(),
 };
+#endif
 
 void gfx_init_state(void) {
+#ifdef PC_BUILD
+    pc_init_static_dls();
+#endif
     gSPSegment(gMainGfxPos++, 0x00, 0x0);
     gSPDisplayList(gMainGfxPos++, OS_K0_TO_PHYSICAL(D_80074230));
     gSPDisplayList(gMainGfxPos++, OS_K0_TO_PHYSICAL(D_80074210));

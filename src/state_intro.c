@@ -3,6 +3,17 @@
 #include "sprite.h"
 #include "game_modes.h"
 
+#ifdef PC_BUILD
+#include <stdio.h>
+static void pc_trace_intro(const char* msg) {
+    FILE* f = fopen("pc_boot_trace.log", "a");
+    if (f) { fprintf(f, "[load_engine] [state_intro] %s\n", msg); fclose(f); }
+}
+#define TRACE_INTRO(msg) pc_trace_intro(msg)
+#else
+#define TRACE_INTRO(msg) ((void)0)
+#endif
+
 enum IntroStates {
     INTRO_INIT                  = 0x00000000,
     INTRO_DISABLE_DRAW_FRAME    = 0x00000001,
@@ -25,6 +36,7 @@ BSS s32 D_800A0964; // related to skipping the intro
 void state_init_intro(void) {
     s8 viewportMode;
 
+    TRACE_INTRO("state_init_intro ENTER");
     gGameStatusPtr->startupState = INTRO_INIT;
 
     set_curtain_scale_goal(1.0f);
@@ -93,6 +105,7 @@ void state_init_intro(void) {
     set_screen_overlay_color(SCREEN_LAYER_BACK, IntroFadeColorR, IntroFadeColorG, IntroFadeColorB);
 
     startup_fade_screen_update();
+    TRACE_INTRO("state_init_intro DONE");
 }
 
 void state_step_intro(void) {
@@ -124,9 +137,18 @@ void state_step_intro(void) {
         }
     }
 
+    {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "state_step_intro startupState=%d introPart=%d",
+                 (int)gGameStatusPtr->startupState, (int)gGameStatusPtr->introPart);
+        TRACE_INTRO(buf);
+    }
+
     switch (gGameStatusPtr->startupState) {
         case INTRO_INIT:
+            TRACE_INTRO("INTRO_INIT: update_effects");
             update_effects();
+            TRACE_INTRO("INTRO_INIT: update_cameras");
             update_cameras();
             if (gGameStatusPtr->introPart == INTRO_PART_NONE) {
                 set_curtain_fade_goal(0.0f);
@@ -144,6 +166,7 @@ void state_step_intro(void) {
             }
             break;
         case INTRO_DISABLE_DRAW_FRAME:
+            TRACE_INTRO("INTRO_DISABLE_DRAW_FRAME");
             IntroEnableDrawFrameDelay = 4;
             gOverrideFlags |= GLOBAL_OVERRIDES_DISABLE_DRAW_FRAME;
             // this condition is always true, likely leftover from an earlier version
@@ -159,6 +182,7 @@ void state_step_intro(void) {
             }
             break;
         case INTRO_LOAD_MAP:
+            TRACE_INTRO("INTRO_LOAD_MAP ENTER");
             set_curtain_draw_callback(nullptr);
             gGameStatusPtr->context = CONTEXT_WORLD;
             gGameStatusPtr->debugUnused1 = false;
@@ -166,12 +190,16 @@ void state_step_intro(void) {
             gGameStatusPtr->keepUsingPartnerOnMapChange = false;
 
             if (gGameStatusPtr->introPart == INTRO_PART_NONE) {
+                TRACE_INTRO("INTRO_LOAD_MAP: introPart=NONE, going to title screen");
                 general_heap_create();
+                TRACE_INTRO("  general_heap_create done");
                 clear_render_tasks();
                 clear_worker_list();
                 clear_script_list();
                 create_cameras();
+                TRACE_INTRO("  create_cameras done");
                 spr_init_sprites(PLAYER_SPRITES_MARIO_WORLD);
+                TRACE_INTRO("  spr_init_sprites done");
                 clear_entity_models();
                 clear_animator_list();
                 clear_model_data();
@@ -191,6 +219,7 @@ void state_step_intro(void) {
                 clear_item_entity_data();
                 clear_saved_variables();
                 initialize_collision();
+                TRACE_INTRO("  all clears done, setting GAME_MODE_TITLE_SCREEN");
                 set_game_mode(GAME_MODE_TITLE_SCREEN);
                 return;
             }
@@ -212,23 +241,33 @@ void state_step_intro(void) {
             }
 
             playerData->curPartner = PARTNER_NONE;
+            TRACE_INTRO("INTRO_LOAD_MAP: calling load_map_by_IDs");
             load_map_by_IDs(gGameStatusPtr->areaID, gGameStatusPtr->mapID, LOAD_FROM_MAP);
+            TRACE_INTRO("INTRO_LOAD_MAP: load_map_by_IDs returned");
             gGameStatusPtr->startupState = INTRO_AWAIT_MAIN;
             disable_player_input();
             break;
         case INTRO_AWAIT_MAIN:
+            TRACE_INTRO("INTRO_AWAIT_MAIN: setting overlay");
             if (IntroOverlayType == OVERLAY_INTRO_1) {
                 IntroOverlayType = OVERLAY_INTRO_2;
             }
             IntroOverlayAlpha = 255 - IntroOverlayDelta;
             gOverrideFlags &= ~GLOBAL_OVERRIDES_DISABLE_DRAW_FRAME;
+            TRACE_INTRO("INTRO_AWAIT_MAIN: clearing camera disabled flag");
             gCameras[CAM_DEFAULT].flags &= ~CAMERA_FLAG_DISABLED;
             gOverrideFlags &= ~GLOBAL_OVERRIDES_DISABLE_RENDER_WORLD;
+            TRACE_INTRO("INTRO_AWAIT_MAIN: update_player");
             update_player();
+            TRACE_INTRO("INTRO_AWAIT_MAIN: update_encounters");
             update_encounters();
+            TRACE_INTRO("INTRO_AWAIT_MAIN: update_npcs");
             update_npcs();
+            TRACE_INTRO("INTRO_AWAIT_MAIN: update_effects");
             update_effects();
+            TRACE_INTRO("INTRO_AWAIT_MAIN: update_cameras");
             update_cameras();
+            TRACE_INTRO("INTRO_AWAIT_MAIN: does_script_exist");
             if (!does_script_exist(gGameStatusPtr->mainScriptID)) {
                 gGameStatusPtr->prevArea = gGameStatusPtr->areaID;
                 gGameStatusPtr->startupState = INTRO_FADE_IN;

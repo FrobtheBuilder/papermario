@@ -64,7 +64,7 @@ HeapNode* _heap_create(HeapNode* addr, u32 size) {
     if (size < 32) {
         return (HeapNode*)-1;
     } else {
-        HeapNode* heapNode = (HeapNode*)ALIGN16((u32)addr);
+        HeapNode* heapNode = (HeapNode*)ALIGN16((uintptr_t)addr);
 
         size -= ((u8*)heapNode - (u8*)addr);
         heapNode->next = nullptr;

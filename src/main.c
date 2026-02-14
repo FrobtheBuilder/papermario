@@ -45,7 +45,22 @@ extern IMG_BIN ResetTilesImg[];
 u16* ResetFrameBufferArray;
 u16* nuGfxZBuffer;
 
+/* PC_BUILD boot tracing - writes to file since DLL stdout may not be connected */
+#ifdef PC_BUILD
+#include <stdio.h>
+static void pc_trace(const char* msg) {
+    FILE* f = fopen("pc_boot_trace.log", "a");
+    if (f) { fprintf(f, "[PC boot] %s\n", msg); fclose(f); }
+}
+#define PC_TRACE(msg) pc_trace(msg)
+#else
+#define PC_TRACE(msg) ((void)0)
+#endif
+
 void boot_main(void* data) {
+
+    PC_TRACE("boot_main entered");
+
 #if VERSION_JP
     if (osTvType == OS_TV_NTSC) {
         nuGfxDisplayOff();
@@ -80,30 +95,65 @@ void boot_main(void* data) {
     crash_screen_init();
 #endif
 
+    PC_TRACE("video init done");
+
 #if !VERSION_IQUE && !VERSION_PAL
     is_debug_init();
 #endif
-    nuGfxInit();
-    gGameStatusPtr->contBitPattern = nuContInit();
+    PC_TRACE("is_debug_init done");
 
-#if !VERSION_IQUE
+    nuGfxInit();
+    PC_TRACE("nuGfxInit done");
+
+    gGameStatusPtr->contBitPattern = nuContInit();
+    PC_TRACE("nuContInit done");
+
+#if !VERSION_IQUE && !defined(PC_BUILD)
     load_obfuscation_shims();
 #endif
+    PC_TRACE("obfuscation shims skipped (PC)");
+
+#ifdef PC_BUILD
+    {
+        extern int g_engine_ready;
+        PC_TRACE("skipping create_audio_system (no ROM audio data)");
+        PC_TRACE("calling load_engine_data...");
+        shim_load_engine_data_obfuscated();
+        PC_TRACE("load_engine_data returned");
+        g_engine_ready = 1;
+    }
+#else
     shim_create_audio_system_obfuscated();
     shim_load_engine_data_obfuscated();
+#endif
 
     nuGfxFuncSet((NUGfxFunc) gfxRetrace_Callback);
     nuGfxPreNMIFuncSet(gfxPreNMI_Callback);
     gRandSeed += osGetCount();
     nuGfxDisplayOn();
 
+    PC_TRACE("boot_main complete");
+
 #ifdef PC_BUILD
     return; // PC: return to caller, game loop driven externally
 #endif
     while (true) {}
+
+#undef PC_TRACE
 }
 
 void gfxRetrace_Callback(s32 gfxTaskNum) {
+#ifdef PC_BUILD
+    static int retrace_count = 0;
+    retrace_count++;
+    if (retrace_count <= 30 || (retrace_count % 60 == 0)) {
+        char buf[256];
+        snprintf(buf, sizeof(buf), "[gfxRetrace] #%d: taskNum=%d resetState=%d toggle=%d overrides=0x%x",
+                 retrace_count, gfxTaskNum, ResetGameState, (int)D_80073E0A, (int)gOverrideFlags);
+        pc_trace(buf);
+    }
+#endif
+
     if (ResetGameState != RESET_STATE_NONE) {
         if (ResetGameState == RESET_STATE_INIT) {
             nuGfxTaskAllEndWait();

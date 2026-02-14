@@ -1,4 +1,7 @@
 #include "game_modes.h"
+#ifdef PC_BUILD
+#include <stdio.h>
+#endif
 
 s32 D_80077420[] = {
     0x000000E4, 0x000000E1, 0x000000EB, 0x000000EF, 0x000000F6, 0x0000010A, 0x0000010C, 0x00000121, 0x00000122,
@@ -259,6 +262,12 @@ GameMode* gameModeMap[] = {
 BSS s16 CurGameMode;
 
 void set_game_mode(s16 mode) {
+#ifdef PC_BUILD
+    {
+        FILE* f = fopen("pc_boot_trace.log", "a");
+        if (f) { fprintf(f, "[load_engine] [set_game_mode] mode=%d\n", (int)mode); fclose(f); }
+    }
+#endif
     CurGameMode = mode;
     set_game_mode_slot(0, gameModeMap[mode]);
 }

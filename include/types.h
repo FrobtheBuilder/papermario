@@ -24,7 +24,15 @@
 typedef char* (*PrintCallback)(void*, const char*, u32);
 
 /// Linker symbol address, as in `ld_addrs.h`.
+/// On N64, Addr symbols are placed by the linker at specific addresses.
+/// Code uses `(u32) symbolName` to get the symbol's address = the ROM offset.
+/// On PC, we can't place symbols at arbitrary addresses, so Addr is a u32
+/// whose VALUE is the ROM offset.
+#ifdef PC_BUILD
+typedef u32 Addr;
+#else
 typedef u8 Addr[];
+#endif
 
 #define BTL_NONE 0
 #define BTL_DEFAULT_STAGE -1

@@ -65,9 +65,6 @@ BSS u8* gLogosImage1;
 BSS u8* gLogosImage2;
 
 void state_init_logos(void) {
-    s8* romStart;
-    s8* romEnd;
-
     general_heap_create();
     gGameStatusPtr->startupState = LOGOS_STATE_N64_FADE_IN;
     gGameStatusPtr->logoTime = 0;
@@ -75,14 +72,33 @@ void state_init_logos(void) {
     startup_set_fade_screen_alpha(255);
     startup_set_fade_screen_color(0);
 
-    romEnd = logos_ROM_END;
-    romStart = logos_ROM_START;
-    gLogosImages = heap_malloc(romEnd - romStart);
-    dma_copy(romStart, romEnd, gLogosImages);
-
-    gLogosImage1 = gLogosImages + 0x0;
-    gLogosImage3 = gLogosImages + 0x7000;
-    gLogosImage2 = gLogosImages + 0x15000;
+#ifdef PC_BUILD
+    {
+        extern int pc_load_logo_textures(u8* dest, u32 dest_size);
+        gLogosImages = heap_malloc(0x1B000);
+        if (gLogosImages && pc_load_logo_textures(gLogosImages, 0x1B000)) {
+            gLogosImage1 = gLogosImages + 0x0;
+            gLogosImage3 = gLogosImages + 0x7000;
+            gLogosImage2 = gLogosImages + 0x15000;
+        } else {
+            gLogosImage1 = NULL;
+            gLogosImage2 = NULL;
+            gLogosImage3 = NULL;
+        }
+    }
+#else
+    {
+        s8* romStart;
+        s8* romEnd;
+        romEnd = logos_ROM_END;
+        romStart = logos_ROM_START;
+        gLogosImages = heap_malloc(romEnd - romStart);
+        dma_copy(romStart, romEnd, gLogosImages);
+        gLogosImage1 = gLogosImages + 0x0;
+        gLogosImage3 = gLogosImages + 0x7000;
+        gLogosImage2 = gLogosImages + 0x15000;
+    }
+#endif
 
     nuContRmbForceStop();
     create_cameras();
@@ -113,7 +129,9 @@ void state_init_logos(void) {
     clear_script_list();
     clear_worker_list();
     clear_render_tasks();
+#ifndef PC_BUILD
     spr_init_sprites(PLAYER_SPRITES_MARIO_WORLD);
+#endif
     clear_animator_list();
     clear_entity_models();
     clear_npcs();
@@ -238,8 +256,10 @@ void state_step_logos(void) {
                 }
                 break;
             case LOGOS_STATE_CLEANUP:
-                heap_free(gLogosImages);
-                gLogosImages = nullptr;
+                if (gLogosImages != NULL) {
+                    heap_free(gLogosImages);
+                }
+                gLogosImages = NULL;
                 startup_set_fade_screen_alpha(255);
                 gGameStatusPtr->introPart = INTRO_PART_0;
                 set_game_mode(GAME_MODE_INTRO);
@@ -252,12 +272,17 @@ void state_step_logos(void) {
 }
 
 void state_drawUI_logos(void) {
+#ifdef PC_BUILD
+    extern void pc_trace_ml(const char*);
+    pc_trace_ml("[state_logos] state_drawUI_logos entered (PC_BUILD)");
+#endif
     appendGfx_intro_logos();
+#ifdef PC_BUILD
+    pc_trace_ml("[state_logos] appendGfx_intro_logos returned OK");
+#endif
 }
 
 void appendGfx_intro_logos(void) {
-    s32 i;
-
     gDPPipeSync(gMainGfxPos++);
     gDPSetRenderMode(gMainGfxPos++, G_RM_NOOP, G_RM_NOOP2);
     gDPSetCombineMode(gMainGfxPos++, G_CC_DECALRGB, G_CC_DECALRGB);
@@ -266,59 +291,62 @@ void appendGfx_intro_logos(void) {
     gDPFillRectangle(gMainGfxPos++, 0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1);
     gDPPipeSync(gMainGfxPos++);
 
-    switch (gGameStatusPtr->startupState) {
-        case LOGOS_STATE_N64_FADE_IN:
-        case LOGOS_STATE_N64_HOLD:
-        case LOGOS_STATE_N64_FADE_OUT:
-            gSPDisplayList(gMainGfxPos++, D_80077908);
-            for (i = 0; i < 7; i++) {
-                gDPLoadTextureTile(gMainGfxPos++, gLogosImage1 + i * 0x1000, G_IM_FMT_RGBA, G_IM_SIZ_16b, 128, 112,
-                                   0, 0, 127, 15, 0,
-                                   G_TX_WRAP, G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
-                gSPTextureRectangle(gMainGfxPos++, 96 * 4, (64 + i * 16) * 4, 224 * 4, (80 + i * 16) * 4, G_TX_RENDERTILE, 0, 0, 1024, 1024);
-                gDPPipeSync(gMainGfxPos++);
-            }
-            break;
-        case LOGOS_STATE_NINTENDO_FADE_IN:
-        case LOGOS_STATE_NINTENDO_HOLD:
-        case LOGOS_STATE_NINTENDO_FADE_OUT:
+    if (gLogosImages != NULL) {
+        s32 i;
+        switch (gGameStatusPtr->startupState) {
+            case LOGOS_STATE_N64_FADE_IN:
+            case LOGOS_STATE_N64_HOLD:
+            case LOGOS_STATE_N64_FADE_OUT:
+                gSPDisplayList(gMainGfxPos++, D_80077908);
+                for (i = 0; i < 7; i++) {
+                    gDPLoadTextureTile(gMainGfxPos++, gLogosImage1 + i * 0x1000, G_IM_FMT_RGBA, G_IM_SIZ_16b, 128, 112,
+                                       0, 0, 127, 15, 0,
+                                       G_TX_WRAP, G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+                    gSPTextureRectangle(gMainGfxPos++, 96 * 4, (64 + i * 16) * 4, 224 * 4, (80 + i * 16) * 4, G_TX_RENDERTILE, 0, 0, 1024, 1024);
+                    gDPPipeSync(gMainGfxPos++);
+                }
+                break;
+            case LOGOS_STATE_NINTENDO_FADE_IN:
+            case LOGOS_STATE_NINTENDO_HOLD:
+            case LOGOS_STATE_NINTENDO_FADE_OUT:
 #if VERSION_JP
-            break;
-        case LOGOS_STATE_IS_FADE_IN:
-        case LOGOS_STATE_IS_HOLD_1:
-        case LOGOS_STATE_IS_HOLD_2:
-        case LOGOS_STATE_IS_FADE_OUT:
+                break;
+            case LOGOS_STATE_IS_FADE_IN:
+            case LOGOS_STATE_IS_HOLD_1:
+            case LOGOS_STATE_IS_HOLD_2:
+            case LOGOS_STATE_IS_FADE_OUT:
 #endif
-            gSPDisplayList(gMainGfxPos++, D_80077908);
-            for (i = 0; i < 6; i++) {
-                gDPLoadTextureTile(gMainGfxPos++, gLogosImage2 + i * 0x1000, G_IM_FMT_RGBA, G_IM_SIZ_16b, 256, 48,
-                                   0, 0, 255, 7, 0,
-                                   G_TX_WRAP, G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
-                gSPTextureRectangle(
-                        gMainGfxPos++,
-                        32 * 4, (LOGO_1_Y + i * 8) * 4,
-                        288 * 4, (LOGO_1_Y + 8 + i * 8) * 4,
-                        G_TX_RENDERTILE, 0, 0, 1024, 1024);
-                gDPPipeSync(gMainGfxPos++);
-            }
+                gSPDisplayList(gMainGfxPos++, D_80077908);
+                for (i = 0; i < 6; i++) {
+                    gDPLoadTextureTile(gMainGfxPos++, gLogosImage2 + i * 0x1000, G_IM_FMT_RGBA, G_IM_SIZ_16b, 256, 48,
+                                       0, 0, 255, 7, 0,
+                                       G_TX_WRAP, G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+                    gSPTextureRectangle(
+                            gMainGfxPos++,
+                            32 * 4, (LOGO_1_Y + i * 8) * 4,
+                            288 * 4, (LOGO_1_Y + 8 + i * 8) * 4,
+                            G_TX_RENDERTILE, 0, 0, 1024, 1024);
+                    gDPPipeSync(gMainGfxPos++);
+                }
 #if !VERSION_JP
-            break;
-        case LOGOS_STATE_IS_FADE_IN:
-        case LOGOS_STATE_IS_HOLD_1:
-        case LOGOS_STATE_IS_HOLD_2:
-        case LOGOS_STATE_IS_FADE_OUT:
-            gSPDisplayList(gMainGfxPos++, D_80077908);
+                break;
+            case LOGOS_STATE_IS_FADE_IN:
+            case LOGOS_STATE_IS_HOLD_1:
+            case LOGOS_STATE_IS_HOLD_2:
+            case LOGOS_STATE_IS_FADE_OUT:
+                gSPDisplayList(gMainGfxPos++, D_80077908);
 #endif
-            for (i = 0; i < 14; i++) {
-                gDPLoadTextureTile(gMainGfxPos++, gLogosImage3 + i * 0x1000, G_IM_FMT_RGBA, G_IM_SIZ_16b, 256, 112,
-                                   0, 0, 255, 7, 0,
-                                   G_TX_WRAP, G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
-                gSPTextureRectangle(gMainGfxPos++,
-                                    32 * 4, (LOGO_2_Y + i * 8) * 4,
-                                    288 * 4, (LOGO_2_Y + 8 + i * 8) * 4,
-                                    G_TX_RENDERTILE, 0, 0, 1024, 1024);
-                gDPPipeSync(gMainGfxPos++);
-            }
-            break;
+                for (i = 0; i < 14; i++) {
+                    gDPLoadTextureTile(gMainGfxPos++, gLogosImage3 + i * 0x1000, G_IM_FMT_RGBA, G_IM_SIZ_16b, 256, 112,
+                                       0, 0, 255, 7, 0,
+                                       G_TX_WRAP, G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+                    gSPTextureRectangle(gMainGfxPos++,
+                                        32 * 4, (LOGO_2_Y + i * 8) * 4,
+                                        288 * 4, (LOGO_2_Y + 8 + i * 8) * 4,
+                                        G_TX_RENDERTILE, 0, 0, 1024, 1024);
+                    gDPPipeSync(gMainGfxPos++);
+                }
+                break;
+        }
     }
 }

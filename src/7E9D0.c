@@ -7,6 +7,17 @@
 #include "effects.h"
 #include "ld_addrs.h"
 
+#ifdef PC_BUILD
+#include <stdio.h>
+static void pc_trace_puas(const char* msg) {
+    FILE* f = fopen("pc_boot_trace.log", "a");
+    if (f) { fprintf(f, "[load_engine] [phys_update_action] %s\n", msg); fclose(f); }
+}
+#define TRACE_PUAS(msg) pc_trace_puas(msg)
+#else
+#define TRACE_PUAS(msg) ((void)0)
+#endif
+
 #ifdef SHIFT
 extern Addr world_action_CLASS_VRAM;
 #define PLAYER_ACTION_VRAM_DEF world_action_CLASS_VRAM
@@ -223,6 +234,8 @@ void phys_update_action_state(void) {
     PlayerStatus* playerStatus = &gPlayerStatus;
     PlayerSpinState* playerSpinState = &gPlayerSpinState;
 
+    TRACE_PUAS("enter");
+
     if (!(playerStatus->flags & PS_FLAG_ENTERING_BATTLE)) {
         playerStatus->flags &= ~PS_FLAG_TIME_STOPPED;
     }
@@ -247,7 +260,9 @@ void phys_update_action_state(void) {
         LastMidairPlayerVelY = playerStatus->gravityIntegrator[0];
     }
 
+    TRACE_PUAS("calculate_camera_yinterp_rate");
     calculate_camera_yinterp_rate();
+    TRACE_PUAS("calculate_camera_yinterp_rate done, checking spinState");
     if (playerSpinState->stopSoundTimer != 0) {
         playerSpinState->stopSoundTimer--;
         if (playerSpinState->stopSoundTimer == 0) {
@@ -258,13 +273,23 @@ void phys_update_action_state(void) {
         }
     }
 
+    TRACE_PUAS("do loop");
     do {
         s32 actionState = playerStatus->actionState;
+
+#ifdef PC_BUILD
+        {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "actionState=%d flags=0x%08x", actionState, (unsigned)playerStatus->flags);
+            TRACE_PUAS(buf);
+        }
+#endif
 
         if (actionState == ACTION_STATE_IDLE || actionState == ACTION_STATE_WALK || actionState == ACTION_STATE_RUN) {
             s32 cond;
 
             if (!(playerStatus->flags & PS_FLAG_INPUT_DISABLED)) {
+                TRACE_PUAS("check_conversation_trigger");
                 cond = check_conversation_trigger();
             } else {
                 cond = false;
@@ -273,19 +298,34 @@ void phys_update_action_state(void) {
             if ((partnerStatus->partnerActionState == PARTNER_ACTION_NONE) && !(playerStatus->flags & PS_FLAG_PAUSED) && cond) {
                 set_action_state(ACTION_STATE_TALK);
             }
+            TRACE_PUAS("check_input_spin");
             check_input_spin();
         }
 
+        TRACE_PUAS("checking ACTION_STATE_CHANGED");
         if (playerStatus->flags & PS_FLAG_ACTION_STATE_CHANGED) {
             void* dmaStart = PlayerActionsTable[playerStatus->actionState].dmaStart;
 
+#ifdef PC_BUILD
+            {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "dma_copy: dmaStart=%p D_8010C924=%p", dmaStart, D_8010C924);
+                TRACE_PUAS(buf);
+            }
+#endif
+
             if (dmaStart != nullptr && dmaStart != D_8010C924) {
                 D_8010C924 = dmaStart;
+                TRACE_PUAS("calling dma_copy for player action overlay");
                 dma_copy(dmaStart, PlayerActionsTable[playerStatus->actionState].dmaEnd, PLAYER_ACTION_VRAM_DEF);
+                TRACE_PUAS("dma_copy done");
             }
         }
+        TRACE_PUAS("calling PlayerActionsTable update");
         PlayerActionsTable[playerStatus->actionState].update();
+        TRACE_PUAS("PlayerActionsTable update done");
     } while (playerStatus->flags & PS_FLAG_ACTION_STATE_CHANGED);
+    TRACE_PUAS("exit");
 }
 
 void phys_peach_update(void) {

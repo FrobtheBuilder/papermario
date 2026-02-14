@@ -1,6 +1,17 @@
 #include "sprite.h"
 #include "sprite/player.h"
 
+#ifdef PC_BUILD
+#include <stdio.h>
+static void spr_trace(const char* msg) {
+    FILE* f = fopen("pc_boot_trace.log", "a");
+    if (f) { fprintf(f, "[spr_init] %s\n", msg); fclose(f); }
+}
+#define SPR_TRACE(msg) spr_trace(msg)
+#else
+#define SPR_TRACE(msg) ((void)0)
+#endif
+
 #define MAX_SPRITE_ID 0xEA // todo generate this
 
 extern HeapNode heap_generalHead;
@@ -773,9 +784,26 @@ void spr_init_sprites(s32 playerSpriteSet) {
     s32 loadedFlags;
     s32 i;
 
+#ifdef PC_BUILD
+    /* Skip ROM-dependent sprite loading until endian conversion is implemented.
+     * Still create the heap and clear arrays so other code doesn't crash. */
     SpriteUseGeneralHeap = false;
     _heap_create(&heap_spriteHead, SPRITE_HEAP_SIZE);
     imgfx_init();
+    for (i = 0; i < ARRAY_COUNT(PlayerSprites); i++) {
+        SpriteAnimData** playerSprites = PlayerSprites;
+        playerSprites[i] = 0;
+    }
+    MaxPlayerSpriteComponents = 0;
+    return;
+#endif
+
+    SPR_TRACE("_heap_create sprite");
+    SpriteUseGeneralHeap = false;
+    _heap_create(&heap_spriteHead, SPRITE_HEAP_SIZE);
+    SPR_TRACE("imgfx_init");
+    imgfx_init();
+    SPR_TRACE("clear PlayerSprites");
 
     for (i = 0; i < ARRAY_COUNT(PlayerSprites); i++) {
         SpriteAnimData** playerSprites = PlayerSprites;
@@ -783,20 +811,24 @@ void spr_init_sprites(s32 playerSpriteSet) {
     }
 
     MaxPlayerSpriteComponents = 0;
+    SPR_TRACE("check peachFlags");
 
     if (gGameStatusPtr->peachFlags & PEACH_FLAG_IS_PEACH) {
         playerSpriteSet = PLAYER_SPRITES_PEACH_WORLD;
     }
 
+    SPR_TRACE("spr_init_player_raster_cache");
     loadedFlags = (&PlayerSpriteSets[playerSpriteSet])->initiallyLoaded;
     spr_init_player_raster_cache((&PlayerSpriteSets[playerSpriteSet])->cacheSize,
                   (&PlayerSpriteSets[playerSpriteSet])->rasterSize);
 
+    SPR_TRACE("spr_load_player_sprite loop");
     for (i = 1; i <= SPR_Peach3; i++) {
         if ((loadedFlags >> i) & 1) {
             spr_load_player_sprite(i);
         }
     }
+    SPR_TRACE("spr_init_sprites done");
 
     for (i = 0; i < ARRAY_COUNT(CurPlayerAnimInfo); i++) {
         CurPlayerAnimInfo[i].componentList = nullptr;
