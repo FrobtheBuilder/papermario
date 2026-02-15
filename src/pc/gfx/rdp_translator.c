@@ -1701,11 +1701,16 @@ static void rdp_process_dl(Gfx* dl, s32 maxCommands) {
                 }
 
                 u32 tmemByteOfs = sRDP.tiles[tile].tmem * 8;
-                u32 totalBytes = bytesPerRow * tileH;
+                // Use TMEM line stride from SETTILE for destination row spacing.
+                // The read code (convert_tmem_to_rgba8) uses tile->line * 8 as stride,
+                // so we must store with the same stride to avoid row misalignment.
+                u32 tmemLineStride = sRDP.tiles[tile].line * 8;
+                if (tmemLineStride == 0) tmemLineStride = bytesPerRow;
+                u32 totalTmemBytes = tmemLineStride * (tileH - 1) + bytesPerRow;
 
                 // Safety: validate address looks like a valid PC pointer
-                if (sRDP.texImgAddr > 0x10000000ULL && totalBytes > 0 &&
-                    tmemByteOfs + totalBytes <= TMEM_SIZE) {
+                if (sRDP.texImgAddr > 0x10000000ULL && bytesPerRow > 0 &&
+                    tmemByteOfs + totalTmemBytes <= TMEM_SIZE) {
                     const u8* srcBase = (const u8*)sRDP.texImgAddr;
                     u32 srcStartRow = ult / 4;
                     u32 srcStartCol = uls / 4;
@@ -1718,7 +1723,7 @@ static void rdp_process_dl(Gfx* dl, s32 maxCommands) {
                     }
                     for (s32 row = 0; row < tileH; row++) {
                         u32 srcOfs = (srcStartRow + row) * srcBytesPerRow + srcColByteOfs;
-                        u32 dstOfs = tmemByteOfs + row * bytesPerRow;
+                        u32 dstOfs = tmemByteOfs + row * tmemLineStride;
                         memcpy(&sRDP.tmem[dstOfs], srcBase + srcOfs, bytesPerRow);
                     }
                     sTmemGeneration++;
@@ -1740,7 +1745,17 @@ static void rdp_process_dl(Gfx* dl, s32 maxCommands) {
                 // Safety: validate address looks like a valid PC pointer
                 if (sRDP.texImgAddr > 0x10000000ULL && byteCount > 0 &&
                     tmemByteOfs + byteCount <= TMEM_SIZE) {
-                    memcpy(&sRDP.tmem[tmemByteOfs], (void*)sRDP.texImgAddr, byteCount);
+                    // Palette data comes from unsigned short[] arrays (INCLUDE_PAL),
+                    // which are native-endian (little-endian on PC). The palette
+                    // read code in CI4/CI8 converters expects big-endian bytes.
+                    // Byte-swap each 16-bit entry during copy.
+                    const u8* palSrc = (const u8*)sRDP.texImgAddr;
+                    for (u32 j = 0; j < count; j++) {
+                        u32 ofs = tmemByteOfs + j * 2;
+                        if (ofs + 1 >= TMEM_SIZE) break;
+                        sRDP.tmem[ofs + 0] = palSrc[j * 2 + 1]; // swap to big-endian
+                        sRDP.tmem[ofs + 1] = palSrc[j * 2 + 0];
+                    }
                     sTmemGeneration++;
                 }
                 break;
