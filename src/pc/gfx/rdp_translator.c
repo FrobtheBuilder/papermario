@@ -545,7 +545,13 @@ static s32 convert_tmem_to_rgba8(const TileDescriptor* tile, u8* outBuf, s32 max
     const u8* tlut = &sRDP.tmem[2048];
 
     // TMEM row stride in bytes (line field = 64-bit words per row)
+    // For RGBA32, the N64 splits data across two TMEM banks (RG in one, BA in
+    // the other), so tile->line only covers half the pixel data. On our flat
+    // TMEM buffer the data is linear, so we need double the stride.
     u32 tmemLineBytes = tile->line * 8;
+    if (tile->fmt == G_IM_FMT_RGBA && tile->siz == G_IM_SIZ_32b) {
+        tmemLineBytes = tile->line * 16;
+    }
 
     // Calculate the tight row size in bytes based on format
     u32 rowBytes = 0;
@@ -1702,9 +1708,12 @@ static void rdp_process_dl(Gfx* dl, s32 maxCommands) {
 
                 u32 tmemByteOfs = sRDP.tiles[tile].tmem * 8;
                 // Use TMEM line stride from SETTILE for destination row spacing.
-                // The read code (convert_tmem_to_rgba8) uses tile->line * 8 as stride,
-                // so we must store with the same stride to avoid row misalignment.
+                // Must match what convert_tmem_to_rgba8 uses as the read stride.
+                // For RGBA32, N64 line value covers half data (dual-bank), so double it.
                 u32 tmemLineStride = sRDP.tiles[tile].line * 8;
+                if (sRDP.texImgSiz == G_IM_SIZ_32b && sRDP.texImgFmt == G_IM_FMT_RGBA) {
+                    tmemLineStride = sRDP.tiles[tile].line * 16;
+                }
                 if (tmemLineStride == 0) tmemLineStride = bytesPerRow;
                 u32 totalTmemBytes = tmemLineStride * (tileH - 1) + bytesPerRow;
 
