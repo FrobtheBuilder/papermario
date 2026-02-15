@@ -560,9 +560,21 @@ void status_bar_draw_stat(s32 id, s32 startX, s32 startY, s32 currentValue, s32 
 }
 
 void update_status_bar(void) {
+#ifdef PC_BUILD
+    TRACE_WORLD("update_status_bar ENTER");
+#endif
     StatusBar* statusBar = &gStatusBar;
+#ifdef PC_BUILD
+    TRACE_WORLD("update_status_bar: got gStatusBar");
+#endif
     PlayerData* playerData = &gPlayerData;
+#ifdef PC_BUILD
+    TRACE_WORLD("update_status_bar: got gPlayerData");
+#endif
     PlayerStatus* playerStatus = &gPlayerStatus;
+#ifdef PC_BUILD
+    TRACE_WORLD("update_status_bar: got gPlayerStatus");
+#endif
     s32 sp50;
     bool showAddedBar;
     s32 i;
@@ -575,6 +587,22 @@ void update_status_bar(void) {
     s32 s1;
     s32 spBars;
     s32 maxStarPower;
+#ifdef PC_BUILD
+    TRACE_WORLD("update_status_bar: locals declared");
+#endif
+
+#ifdef PC_BUILD
+    if (gGameStatusPtr == nullptr) {
+        TRACE_WORLD("update_status_bar: gGameStatusPtr is NULL!");
+        return;
+    }
+    // Print pointer address to check if reasonable
+    {
+        char buf[128];
+        sprintf(buf, "update_status_bar: gGameStatusPtr=%p", (void*)gGameStatusPtr);
+        TRACE_WORLD(buf);
+    }
+#endif
 
     if (gGameStatusPtr->introPart >= INTRO_PART_0
         || gGameStatusPtr->demoState != DEMO_STATE_NONE
@@ -1268,8 +1296,17 @@ API_CALLABLE(ShowCoinCounter) {
 }
 
 void draw_status_ui(void) {
+#ifdef PC_BUILD
+    TRACE_WORLD("draw_status_ui: calling update_status_bar");
+#endif
     update_status_bar();
+#ifdef PC_BUILD
+    TRACE_WORLD("draw_status_ui: update_status_bar done");
+#endif
     update_coin_counter();
+#ifdef PC_BUILD
+    TRACE_WORLD("draw_status_ui: update_coin_counter done");
+#endif
 }
 
 void open_status_bar_slowly(void) {

@@ -8,16 +8,7 @@
 #include "model.h"
 #include "gcc/string.h"
 
-#ifdef PC_BUILD
-#include <stdio.h>
-static void pc_trace_world(const char* msg) {
-    FILE* f = fopen("pc_boot_trace.log", "a");
-    if (f) { fprintf(f, "[load_engine] [world] %s\n", msg); fclose(f); }
-}
-#define TRACE_WORLD(msg) pc_trace_world(msg)
-#else
-#define TRACE_WORLD(msg) ((void)0)
-#endif
+// TRACE_WORLD is now defined in pc_fixup.h
 
 s32 WorldReverbModeMapping[] = { 0, 1, 2, 3 };
 

@@ -1,6 +1,10 @@
 #ifndef _ULTRATYPES_H_
 #define _ULTRATYPES_H_
 
+// PC build fixups must be included first (before standard library includes)
+#ifdef PC_BUILD
+#include "pc_fixup.h"
+#endif
 
 /**************************************************************************
  *                                                                        *
