@@ -197,6 +197,40 @@ void gfx_draw_frame(void) {
 
     gSPMatrix(gMainGfxPos++, &MasterIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
+#ifdef PC_BUILD
+    // Test triangle to verify rendering pipeline (remove once real rendering works)
+    {
+        static int once = 0;
+        if (once == 0) {
+            TRACE_WORLD("gfx_draw_frame: adding test triangle");
+            once = 1;
+        }
+
+        // Set up a simple orthographic projection: left=-160, right=160, top=120, bottom=-120, near=1, far=1000
+        static Mtx orthoProj;
+        if (once == 1) {
+            guOrtho(&orthoProj, -160.0f, 160.0f, -120.0f, 120.0f, 1.0f, 1000.0f, 1.0f);
+            once = 2;
+        }
+
+        gSPMatrix(gMainGfxPos++, &orthoProj, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+        gSPMatrix(gMainGfxPos++, &MasterIdentityMtx, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
+
+        static Vtx testVtx[3] = {
+            {{ {-64, -64, -100}, 0, {0, 0}, {255, 0, 0, 255} }},
+            {{ { 64, -64, -100}, 0, {0, 0}, {0, 255, 0, 255} }},
+            {{ {  0,  64, -100}, 0, {0, 0}, {0, 0, 255, 255} }},
+        };
+        gDPPipeSync(gMainGfxPos++);
+        gDPSetCycleType(gMainGfxPos++, G_CYC_1CYCLE);
+        gDPSetRenderMode(gMainGfxPos++, G_RM_AA_OPA_SURF, G_RM_AA_OPA_SURF2);
+        gDPSetCombineMode(gMainGfxPos++, G_CC_SHADE, G_CC_SHADE);
+        gSPClearGeometryMode(gMainGfxPos++, G_ZBUFFER | G_LIGHTING | G_CULL_BOTH);
+        gSPVertex(gMainGfxPos++, testVtx, 3, 0);
+        gSP1Triangle(gMainGfxPos++, 0, 1, 2, 0);
+    }
+#endif
+
     spr_render_init();
 
     if (!(gOverrideFlags & GLOBAL_OVERRIDES_DISABLE_RENDER_WORLD)) {
