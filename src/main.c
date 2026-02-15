@@ -37,7 +37,7 @@ extern s16 D_80073E08;
 extern s16 D_80073E0A;
 extern IMG_BIN ResetTilesImg[];
 
-#if defined(SHIFT) || VERSION_IQUE
+#if defined(SHIFT) || VERSION_IQUE || defined(PLATFORM_PC)
 #define shim_create_audio_system_obfuscated create_audio_system
 #define shim_load_engine_data_obfuscated load_engine_data
 #endif

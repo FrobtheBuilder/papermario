@@ -1444,13 +1444,13 @@ void btl_draw_upgrade_windows(s32 phase) {
     }
 
     hud_element_get_render_pos(LevelUpStatEmblemIDs[0], &x, &y);
-    draw_box(0, WINDOW_STYLE_15, x - 22, y - 22, 0, 44, 44, 255, d1, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr, nullptr,
+    draw_box(0, WSTYLE(WINDOW_STYLE_15), x - 22, y - 22, 0, 44, 44, 255, d1, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr, nullptr,
              SCREEN_WIDTH, SCREEN_HEIGHT, nullptr);
     hud_element_get_render_pos(LevelUpStatEmblemIDs[3], &x, &y);
-    draw_box(0, WINDOW_STYLE_15, x - 22, y - 22, 0, 44, 44, 255, d2, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr, nullptr,
+    draw_box(0, WSTYLE(WINDOW_STYLE_15), x - 22, y - 22, 0, 44, 44, 255, d2, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr, nullptr,
              SCREEN_WIDTH, SCREEN_HEIGHT, nullptr);
     hud_element_get_render_pos(LevelUpStatEmblemIDs[2], &x, &y);
-    draw_box(0, WINDOW_STYLE_15, x - 22, y - 22, 0, 44, 44, 255, d3, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr, nullptr,
+    draw_box(0, WSTYLE(WINDOW_STYLE_15), x - 22, y - 22, 0, 44, 44, 255, d3, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr, nullptr,
              SCREEN_WIDTH, SCREEN_HEIGHT, nullptr);
 }
 

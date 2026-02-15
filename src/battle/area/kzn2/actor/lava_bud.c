@@ -49,8 +49,13 @@ BSS u8 Vine2Base[0x3000];
 BSS u8 Vine1Base[0x3000];
 BSS u8 Vine0Base[0x4000];
 
+#ifdef PLATFORM_PC
+#define VINE_1_BASE (Bytecode) Vine1Base
+#define VINE_2_BASE (Bytecode) Vine2Base
+#else
 #define VINE_1_BASE (s32) Vine1Base
 #define VINE_2_BASE (s32) Vine2Base
+#endif
 
 #define EVT_LOAD_BUD_ANIM(whichVine, anim) \
     IfEq(whichVine, VINE_1) \

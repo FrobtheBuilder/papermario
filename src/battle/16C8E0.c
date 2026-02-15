@@ -1053,7 +1053,7 @@ void btl_update_starpoints_display(void) {
             posY = StarPointsBasePosY + (one * 14.0f);
             if (gBattleStatus.flags2 & BS_FLAGS2_AWARDING_STAR_POINTS) {
                 if (ones != 0) {
-                    draw_box(0, WINDOW_STYLE_4, posX - 100, posY - 5, 0, 110, 12, 120, 0, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr,
+                    draw_box(0, WSTYLE(WINDOW_STYLE_4), posX - 100, posY - 5, 0, 110, 12, 120, 0, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr,
                              nullptr, SCREEN_WIDTH, SCREEN_HEIGHT, nullptr);
                 }
             }

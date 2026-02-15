@@ -2,7 +2,7 @@
 
 extern u8 obfuscated_create_audio_system[];
 
-#ifdef SHIFT
+#if defined(SHIFT) || defined(PLATFORM_PC)
 void create_audio_system(void);
 void create_audio_system_obfuscated(void) {
     create_audio_system();

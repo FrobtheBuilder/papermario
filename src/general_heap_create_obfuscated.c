@@ -5,7 +5,7 @@
 
 extern u8 obfuscated_general_heap_create[];
 
-#ifdef SHIFT
+#if defined(SHIFT) || defined(PLATFORM_PC)
 void general_heap_create_obfuscated(void) {
     general_heap_create();
 }

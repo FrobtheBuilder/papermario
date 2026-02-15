@@ -30,7 +30,11 @@ typedef s8 b8;
 typedef s32 HitID;
 typedef u32 AnimID;
 typedef s32 HudElemID;
+#ifdef PLATFORM_PC
+typedef intptr_t MsgID;
+#else
 typedef s32 MsgID;
+#endif
 
 typedef struct {
     u8 r, g, b, a;
@@ -1048,7 +1052,11 @@ typedef struct TextureHeader {
 } TextureHeader; // size = 0x30
 
 typedef struct MoveData {
+#ifdef PLATFORM_PC
+    /* 0x00 */ intptr_t nameMsg; // may hold string pointer in JP debug entries
+#else
     /* 0x00 */ s32 nameMsg;
+#endif
     /* 0x04 */ s32 flags;
     /* 0x08 */ s32 shortDescMsg;
     /* 0x0C */ s32 fullDescMsg;
@@ -2209,6 +2217,21 @@ typedef struct WindowStyleCustom {
     /* 0x34 */ Color_RGBA8 color2;
 } WindowStyleCustom; // size = 0x38;
 
+#ifdef PLATFORM_PC
+// On 64-bit PC, transparent_union is not supported on MinGW GCC.
+// Use intptr_t for the int member so it's the same size as a pointer,
+// allowing both int IDs and pointer values to be stored and compared correctly.
+typedef union {
+    intptr_t defaultStyleID;
+    WindowStyleCustom* customStyle;
+} WindowStyle;
+
+typedef union {
+    intptr_t i;
+    void (*func)(s32 windowIndex, s32* flags, s32* posX, s32* posY, s32* posZ, f32* scaleX, f32* scaleY,
+                                 f32* rotX, f32* rotY, f32* rotZ, s32* darkening, s32* opacity);
+} WindowUpdateFunc;
+#else
 typedef union {
     int defaultStyleID;
     WindowStyleCustom* customStyle;
@@ -2219,6 +2242,7 @@ typedef union {
     void (*func)(s32 windowIndex, s32* flags, s32* posX, s32* posY, s32* posZ, f32* scaleX, f32* scaleY,
                                  f32* rotX, f32* rotY, f32* rotZ, s32* darkening, s32* opacity);
 } WindowUpdateFunc TRANSPARENT_UNION;
+#endif
 
 typedef struct MenuWindowBP {
     /* 0x00 */ s8 windowID;

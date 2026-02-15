@@ -3,6 +3,11 @@
    actual type **after default promotions**.
    Thus, va_arg (..., short) is not valid.  */
 
+#ifdef PLATFORM_PC
+// On PC, use the system stdarg
+#include <stdarg.h>
+#else
+
 #ifndef _STDARG_H
 #ifndef _ANSI_STDARG_H_
 #ifndef __need___va_list
@@ -205,3 +210,4 @@ typedef __gnuc_va_list va_list;
 
 #endif /* not _ANSI_STDARG_H_ */
 #endif /* not _STDARG_H */
+#endif /* !PLATFORM_PC */

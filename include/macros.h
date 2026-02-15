@@ -46,6 +46,24 @@
 
 #define ARRAY_COUNT(arr) (s32)(sizeof(arr) / sizeof(arr[0]))
 
+// Cast a pointer/address to a script word type. On N64, all script words are s32 (pointers fit in 32 bits).
+// On PC 64-bit, pointers don't fit in s32, so we use intptr_t for static initializer compatibility.
+// GNU11 mode (-std=gnu11) allows address-to-integer casts in static initializers as an extension.
+#ifdef PLATFORM_PC
+#include <stdint.h>
+#define SCRIPT_CAST(x) ((intptr_t)(x))
+#else
+#define SCRIPT_CAST(x) (s32)(x)
+#endif
+
+// MSGID_AS_PTR: cast a pointer to MsgID for arrays that store both message IDs
+// and direct pointers to message data. On 64-bit PC, intptr_t is needed.
+#ifdef PLATFORM_PC
+#define MSGID_AS_PTR(x) ((MsgID)(intptr_t)(x))
+#else
+#define MSGID_AS_PTR(x) ((MsgID)(x))
+#endif
+
 #if !defined(PERMUTER) && !defined(M2CTX) && defined(OLD_GCC)
 #define NOP_FIX __asm__(".set nogpopt");
 #define NOP_UNFIX __asm__(".set gpopt");
@@ -62,8 +80,22 @@
 #define MAP_RODATA_PAD(n,name) const s32 N(rodata_pad_##name)[n] = {};
 #define MAP_STATIC_PAD(n,name) BSS s32 N(static_pad_##name)[n];
 
+#ifdef PLATFORM_PC
+// On PC there is no MIPS kseg0 mapping; addresses are used as-is
+#define PHYSICAL_TO_VIRTUAL(addr) ((void*)(addr))
+#define VIRTUAL_TO_PHYSICAL(addr) ((uintptr_t)(addr))
+#undef OS_K0_TO_PHYSICAL
+#undef OS_K1_TO_PHYSICAL
+#undef OS_PHYSICAL_TO_K0
+#undef OS_PHYSICAL_TO_K1
+#define OS_K0_TO_PHYSICAL(x) ((uintptr_t)(x))
+#define OS_K1_TO_PHYSICAL(x) ((uintptr_t)(x))
+#define OS_PHYSICAL_TO_K0(x) ((void*)(uintptr_t)(x))
+#define OS_PHYSICAL_TO_K1(x) ((void*)(uintptr_t)(x))
+#else
 #define PHYSICAL_TO_VIRTUAL(addr) (void*)((u32)(addr) + 0x80000000)
 #define VIRTUAL_TO_PHYSICAL(addr) (u32)((u8*)(addr) - 0x80000000)
+#endif
 
 #ifdef DEBUG
 #define IS_DEBUG_PANIC(statement, file, line) is_debug_panic(statement, file, line)
@@ -544,7 +576,12 @@ typedef s32 Difficulty2D[AC_DIFFICULTY_LEN][2];
 #define DT (1.0)
 #endif
 
+#ifdef PLATFORM_PC
+// On PC all code is statically linked, no ROM DMA needed
+#define DMA_COPY_SEGMENT(segment) ((void)0)
+#else
 #define DMA_COPY_SEGMENT(segment) dma_copy(segment##_ROM_START, segment##_ROM_END, segment##_VRAM)
+#endif
 
 #if defined(OLD_GCC) || __STDC_VERSION__ < 202311L
 typedef enum {

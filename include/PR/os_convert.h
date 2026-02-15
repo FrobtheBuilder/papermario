@@ -98,8 +98,14 @@ extern "C" {
 
 /* Address translation routines and macros */
 
+#ifdef PLATFORM_PC
+#include <stdint.h>
+extern uintptr_t	 osVirtualToPhysical(void *);
+extern void *		 osPhysicalToVirtual(uintptr_t);
+#else
 extern u32		 osVirtualToPhysical(void *);
 extern void *		 osPhysicalToVirtual(u32);
+#endif
 
 
 #endif  /* defined(_LANGUAGE_C) || defined(_LANGUAGE_C_PLUS_PLUS) */

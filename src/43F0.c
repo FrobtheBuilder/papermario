@@ -64,7 +64,7 @@ HeapNode* _heap_create(HeapNode* addr, u32 size) {
     if (size < 32) {
         return (HeapNode*)-1;
     } else {
-        HeapNode* heapNode = (HeapNode*)ALIGN16((u32)addr);
+        HeapNode* heapNode = (HeapNode*)ALIGN16((uintptr_t)addr);
 
         size -= ((u8*)heapNode - (u8*)addr);
         heapNode->next = nullptr;
@@ -437,6 +437,12 @@ void copy_matrix(Matrix4f src, Matrix4f dest) {
 
 // maybe u32
 u32 dma_copy(Addr romStart, Addr romEnd, void* vramDest) {
+#ifdef PLATFORM_PC
+    // On PC, ROM addresses are meaningless linker symbols.
+    // ROM data access will be replaced by file-based asset loading.
+    (void)romStart; (void)romEnd; (void)vramDest;
+    return 0;
+#else
     u32 length = romEnd - romStart;
     s32 i;
 
@@ -451,9 +457,14 @@ u32 dma_copy(Addr romStart, Addr romEnd, void* vramDest) {
     }
 
     return length;
+#endif
 }
 
 s32 dma_write(Addr romStart, Addr romEnd, void* vramDest) {
+#ifdef PLATFORM_PC
+    (void)romStart; (void)romEnd; (void)vramDest;
+    return 0;
+#else
     u32 length = romEnd - romStart;
     s32 i;
 
@@ -466,6 +477,7 @@ s32 dma_write(Addr romStart, Addr romEnd, void* vramDest) {
     }
 
     return length;
+#endif
 }
 
 void dma_write_block(Addr dramAddr, u32 devAddr, s32 size) {

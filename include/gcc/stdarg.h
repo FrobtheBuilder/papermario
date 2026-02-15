@@ -1,5 +1,11 @@
 #ifndef _STDARG_H
 #define _STDARG_H
+
+#ifdef PLATFORM_PC
+// On PC, use the system stdarg instead of MIPS-specific one
+#undef _STDARG_H
+#include_next <stdarg.h>
+#else
 /* ---------------------------------------- */
 /*           VARARGS  for MIPS/GNU CC       */
 /*                                          */
@@ -118,4 +124,5 @@ void va_end (__gnuc_va_list);		/* Defined in libgcc.a */
 typedef __gnuc_va_list va_list;
 
 #endif /* defined (_STDARG_H) || defined (_VARARGS_H) */
+#endif /* !PLATFORM_PC */
 #endif

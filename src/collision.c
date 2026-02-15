@@ -100,6 +100,11 @@ void initialize_collision(void) {
 }
 
 void load_map_hit_asset(void) {
+#ifdef PLATFORM_PC
+    // On PC, asset data is unavailable (DMA is a no-op).
+    // Skip loading collision data - numColliders stays 0 from initialize_collision().
+    return;
+#endif
     u32 assetSize;
     MapSettings* map = get_current_map_settings();
     void* compressedData = load_asset_by_name(wMapHitName, &assetSize);
@@ -149,6 +154,10 @@ void restore_map_collision_data(void) {
 }
 
 void load_battle_hit_asset(const char* hitName) {
+#ifdef PLATFORM_PC
+    gCollisionData.numColliders = 0;
+    return;
+#endif
     if (hitName == nullptr) {
         gCollisionData.numColliders = 0;
     } else {

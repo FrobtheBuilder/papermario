@@ -266,6 +266,14 @@ s32 get_map_IDs_by_name(const char* mapName, s16* areaID, s16* mapID) {
 }
 
 void* load_asset_by_name(const char* assetName, u32* decompressedSize) {
+#ifdef PLATFORM_PC
+    // On PC, DMA is a no-op so we can't read the ROM asset table.
+    // Return a minimal allocation (callers free this with general_heap_free).
+    // decode_yay0 is also a no-op, so destination buffers stay as-is.
+    // Use 4096 for decompressedSize since some callers heap_malloc(decompressedSize).
+    *decompressedSize = 4096;
+    return general_heap_malloc(16);
+#else
     AssetHeader firstHeader;
     AssetHeader* assetTableBuffer;
     AssetHeader* curAsset;
@@ -284,9 +292,16 @@ void* load_asset_by_name(const char* assetName, u32* decompressedSize) {
              (u8*) ASSET_TABLE_FIRST_ENTRY + curAsset->offset + curAsset->compressedLength, ret);
     heap_free(assetTableBuffer);
     return ret;
+#endif
 }
 
 s32 get_asset_offset(char* assetName, s32* compressedSize) {
+#ifdef PLATFORM_PC
+    // On PC, DMA is a no-op so we can't read the ROM asset table.
+    // Return 0 offset and 0 size - any DMA using these will also be a no-op.
+    *compressedSize = 0;
+    return 0;
+#else
     AssetHeader firstHeader;
     AssetHeader* assetTableBuffer;
     AssetHeader* curAsset;
@@ -303,6 +318,7 @@ s32 get_asset_offset(char* assetName, s32* compressedSize) {
     ret = ASSET_TABLE_FIRST_ENTRY + curAsset->offset;
     heap_free(assetTableBuffer);
     return ret;
+#endif
 }
 
 #define AREA(area, jp_name) { ARRAY_COUNT(area##_maps), area##_maps, "area_" #area, jp_name }

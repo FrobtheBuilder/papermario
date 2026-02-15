@@ -98,7 +98,7 @@ s32 draw_ci_image_with_clipping(IMG_PTR raster, s32 width, s32 height, s32 fmt, 
 void render_frame(s32 flag);
 void clear_windows(void);
 void update_window_hierarchy(s32 windowIndex, u8 arg1);
-void get_msg_properties(s32 msgID, s32* height, s32* width, s32* maxLineChars, s32* numLines, s32* maxLinesPerPage, s32* arg6, u16 charset);
+void get_msg_properties(MsgID msgID, s32* height, s32* width, s32* maxLineChars, s32* numLines, s32* maxLinesPerPage, s32* arg6, u16 charset);
 void replace_window_update(s32 idx, s8 arg1, WindowUpdateFunc pendingFunc);
 void decode_yay0(void* src, void* dst);
 
@@ -188,7 +188,7 @@ void entity_HugeBlueSwitch_init(Entity* entity);
 s32 dispatch_damage_event_actor_0(Actor* actor, s32 damageAmount, s32 event);
 
 // Text
-MessagePrintState* msg_get_printer_for_msg(s32 msgID, bool* donePrintingWriteback);
+MessagePrintState* msg_get_printer_for_msg(MsgID msgID, bool* donePrintingWriteback);
 s32 msg_printer_load_msg(s32 msgID, MessagePrintState* printer);
 void msg_printer_set_origin_pos(MessagePrintState* msgPrintState, s32 x, s32 y);
 
@@ -211,7 +211,17 @@ void peach_set_disguise_anim(AnimID);
 s32 draw_box(s32 flags, WindowStyle windowStyle, s32 posX, s32 posY, s32 posZ, s32 width, s32 height, u8 opacity,
               u8 darkening, f32 scaleX, f32 scaleY, f32 rotX, f32 rotY, f32 rotZ, void (*fpDrawContents)(s32, s32, s32, s32, s32, s32, s32),
               void* drawContentsArg0, Matrix4f rotScaleMtx, s32 translateX, s32 translateY, Matrix4f outMtx);
-s32 get_msg_width(s32 msgID, u16 charset);
+#ifdef PLATFORM_PC
+// transparent_union not supported on MinGW GCC. Use WSTYLE() to wrap int→WindowStyle at call sites.
+#define WSTYLE(x) ((WindowStyle){ .defaultStyleID = (x) })
+#define WSTYLE_PTR(p) ((WindowStyle){ .customStyle = (p) })
+#define WUPDATE_FUNC(f) ((WindowUpdateFunc){ .func = (f) })
+#else
+#define WSTYLE(x) (x)
+#define WSTYLE_PTR(p) (p)
+#define WUPDATE_FUNC(f) (f)
+#endif
+s32 get_msg_width(MsgID msgID, u16 charset);
 
 s32 partner_can_open_world_menus(void);
 s32 disable_player_static_collisions(void);
@@ -266,8 +276,16 @@ f32 sin_deg(f32 x);
 f32 cos_deg(f32 x);
 f32 sin_rad(f32 x);
 f32 cos_rad(f32 x);
+#ifdef PLATFORM_PC
+// Game's round/atan2 have different signatures from C stdlib - rename them on PC
+s32 pm_round(f32);
+f32 pm_atan2(f32 startX, f32 startZ, f32 endX, f32 endZ);
+#define round pm_round
+#define atan2 pm_atan2
+#else
 s32 round(f32);
 f32 atan2(f32 startX, f32 startZ, f32 endX, f32 endZ);
+#endif
 f32 clamp_angle(f32 theta);
 s32 sign(s32 value);
 
@@ -813,7 +831,7 @@ bool is_point_visible(f32 x, f32 y, f32 z, s32 depthQueryID, f32* screenX, f32* 
 void set_screen_overlay_center_worldpos(s32 idx, s32 posIdx, s32 x, s32 y, s32 z);
 void* mdl_get_next_texture_address(s32);
 s32 cancel_current_message(void);
-void draw_msg(s32 msgID, s32 posX, s32 posY, s32 opacity, s32 palette, u8 style);
+void draw_msg(MsgID msgID, s32 posX, s32 posY, s32 opacity, s32 palette, u8 style);
 void mdl_get_shroud_tint_params(u8* r, u8* g, u8* b, u8* a);
 
 s32 entity_base_block_idle(Entity* entity);
@@ -837,7 +855,7 @@ void func_800EF314(void);
 void func_800EF43C(void);
 void func_800EF3E4(void);
 void enable_player_shadow(void);
-s32 get_msg_lines(s32 messageID);
+s32 get_msg_lines(MsgID messageID);
 void set_window_properties(s32 panelID, s32 posX, s32 posY, s32 width, s32 height, u8, void* drawContents, void* drawContentsArg, s8 parent);
 void set_window_update(s32 panelID, s32);
 void set_windows_visible(s32 groupIdx);

@@ -1,5 +1,9 @@
 #include "common.h"
+#ifndef PLATFORM_PC
 #include "nu/nusys.h"
+#else
+#include "pc/pc_input.h"
+#endif
 
 OSContPad ContPadData;
 BSS s16 StickExtremeX;
@@ -61,7 +65,11 @@ void update_input(void) {
 
     if (gGameStatusPtr->contBitPattern & 1) {
         hasInput = true;
+#ifndef PLATFORM_PC
         nuContDataGet(contData, 0);
+#else
+        pc_input_update((PCContPad*)contData);
+#endif
     }
 
     if (gGameStatusPtr->demoState != DEMO_STATE_NONE) {

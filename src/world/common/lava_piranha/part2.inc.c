@@ -4,10 +4,14 @@ BSS s32 N(VineRenderState);
 
 MAP_STATIC_PAD(1, unk_static_pad);
 
+#ifdef PLATFORM_PC
+#define PIRANHA_DMA_ENTRY(name) 0, 0, 0
+#else
 #define PIRANHA_DMA_ENTRY(name) \
     (s32) world_model_anim_kzn_##name##_ROM_START,\
     (s32) world_model_anim_kzn_##name##_ROM_END,\
     (s32) world_model_anim_kzn_##name##_VRAM
+#endif
 
 s32 N(VineAnimationsDmaTable)[] = {
     PIRANHA_DMA_ENTRY(00),

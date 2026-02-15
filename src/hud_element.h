@@ -6,7 +6,11 @@
 
 #define HUD_ELEMENT_BATTLE_ID_MASK 0x800
 
+#ifdef PLATFORM_PC
+typedef intptr_t HudScript[];
+#else
 typedef s32 HudScript[];
+#endif
 
 enum {
     HUD_ELEMENT_OP_End,
@@ -216,7 +220,11 @@ extern HudScript HES_Refund_es;
 extern HudScript HES_MenuTimes;
 
 typedef struct PartnerPopupProperties {
+#ifdef PLATFORM_PC
+    /* 0x00 */ intptr_t nameMsg; // may hold string pointer in JP debug entries
+#else
     /* 0x00 */ s32 nameMsg;
+#endif
     /* 0x04 */ s32 unk_04;
     /* 0x08 */ s32 worldDescMsg;
     /* 0x0C */ s32 battleDescMsg;
@@ -226,12 +234,12 @@ extern PartnerPopupProperties gPartnerPopupProperties[13];
 extern HudScript* wDisabledPartnerHudScripts[];
 extern HudScript* wPartnerHudScripts[];
 
-#define HS_PTR(sym)         (s32)&sym
+#define HS_PTR(sym)         SCRIPT_CAST(&sym)
 
 #define hs_End HUD_ELEMENT_OP_End,
-#define hs_SetRGBA(time, image) HUD_ELEMENT_OP_SetRGBA, time, (s32)image,
-#define hs_SetCI(time, name) HUD_ELEMENT_OP_SetCI, time, (s32)name##_png, (s32)name##_pal,
-#define hs_SetCI_Explicit(time, raster, palette) HUD_ELEMENT_OP_SetCI, time, (s32)raster##_png, (s32)palette##_pal,
+#define hs_SetRGBA(time, image) HUD_ELEMENT_OP_SetRGBA, time, SCRIPT_CAST(image),
+#define hs_SetCI(time, name) HUD_ELEMENT_OP_SetCI, time, SCRIPT_CAST(name##_png), SCRIPT_CAST(name##_pal),
+#define hs_SetCI_Explicit(time, raster, palette) HUD_ELEMENT_OP_SetCI, time, SCRIPT_CAST(raster##_png), SCRIPT_CAST(palette##_pal),
 #define hs_Restart HUD_ELEMENT_OP_Restart,
 #define hs_Loop HUD_ELEMENT_OP_Loop,
 #define hs_SetTileSize(size) HUD_ELEMENT_OP_SetTileSize, size,
@@ -254,7 +262,11 @@ extern HudScript* wPartnerHudScripts[];
 #define hs_RandomRestart(max, cutoff) HUD_ELEMENT_OP_RandomRestart, max, cutoff,
 
 #define hs_SetVariable(arg0) HUD_ELEMENT_OP_SetVariable, arg0,
+#ifdef PLATFORM_PC
+#define hs_RandomBranch(args...) HUD_ELEMENT_OP_RandomBranch, (sizeof((intptr_t[]){args})/sizeof(intptr_t)), args,
+#else
 #define hs_RandomBranch(args...) HUD_ELEMENT_OP_RandomBranch, (sizeof((s32[]){args})/sizeof(s32)), args,
+#endif
 #define hs_SetFlags(arg0) HUD_ELEMENT_OP_SetFlags, arg0,
 #define hs_ClearFlags(arg0) HUD_ELEMENT_OP_ClearFlags, arg0,
 #define hs_PlaySound(arg0) HUD_ELEMENT_OP_PlaySound, arg0,

@@ -182,7 +182,7 @@ s32 draw_image_with_clipping(IMG_PTR raster, s32 width, s32 height, s32 fmt, s32
 s32 _update_message(MessagePrintState* printer);
 void msg_copy_to_print_buffer(MessagePrintState* printer, s32 arg1, s32 arg2);
 void initialize_printer(MessagePrintState* printer, s32 arg1, s32 arg2);
-MessagePrintState* _msg_get_printer_for_msg(s32 msgID, bool* donePrintingWriteback, s32 arg2);
+MessagePrintState* _msg_get_printer_for_msg(MsgID msgID, bool* donePrintingWriteback, s32 arg2);
 void msg_update_rewind_arrow(s32);
 void msg_draw_rewind_arrow(s32);
 void msg_draw_choice_pointer(MessagePrintState* printer);
@@ -1428,11 +1428,11 @@ s8* load_message_to_buffer(s32 msgID) {
     return prevBufferPos;
 }
 
-MessagePrintState* msg_get_printer_for_msg(s32 msgID, bool* donePrintingWriteback) {
+MessagePrintState* msg_get_printer_for_msg(MsgID msgID, bool* donePrintingWriteback) {
     return _msg_get_printer_for_msg(msgID, donePrintingWriteback, 0);
 }
 
-MessagePrintState* _msg_get_printer_for_msg(s32 msgID, bool* donePrintingWriteback, s32 arg2) {
+MessagePrintState* _msg_get_printer_for_msg(MsgID msgID, bool* donePrintingWriteback, s32 arg2) {
     MessagePrintState* printer;
     s8* srcBuffer;
     s32 height;
@@ -1675,7 +1675,7 @@ s32 msg_get_draw_char_width(s32 character, s32 charset, s32 variation, f32 msgSc
     return baseWidth * msgScale;
 }
 
-void get_msg_properties(s32 msgID, s32* height, s32* width, s32* maxLineChars, s32* numLines, s32* maxLinesPerPage, s32* numSpaces, u16 charset) {
+void get_msg_properties(MsgID msgID, s32* height, s32* width, s32* maxLineChars, s32* numLines, s32* maxLinesPerPage, s32* numSpaces, u16 charset) {
     u8* message;
     s32 i;
     u16 pageCount;
@@ -1975,7 +1975,7 @@ void get_msg_properties(s32 msgID, s32* height, s32* width, s32* maxLineChars, s
     }
 }
 
-s32 get_msg_width(s32 msgID, u16 charset) {
+s32 get_msg_width(MsgID msgID, u16 charset) {
     s32 width;
 
     get_msg_properties(msgID, nullptr, &width, nullptr, nullptr, nullptr, nullptr, charset);
@@ -1983,7 +1983,7 @@ s32 get_msg_width(s32 msgID, u16 charset) {
 }
 
 #if !VERSION_JP
-s32 get_msg_lines(s32 msgID) {
+s32 get_msg_lines(MsgID msgID) {
     s32 numLines;
 
     get_msg_properties(msgID, nullptr, nullptr, nullptr, &numLines, nullptr, nullptr, 0);
@@ -1991,7 +1991,7 @@ s32 get_msg_lines(s32 msgID) {
 }
 #endif
 
-void draw_msg(s32 msgID, s32 posX, s32 posY, s32 opacity, s32 palette, u8 style) {
+void draw_msg(MsgID msgID, s32 posX, s32 posY, s32 opacity, s32 palette, u8 style) {
     MessagePrintState stackPrinter;
     MessagePrintState* printer;
     u16 bufferPos;

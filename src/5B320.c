@@ -330,7 +330,7 @@ s32 MenuIndexFromPartnerID[] = {
 
 PartnerPopupProperties gPartnerPopupProperties[] = {
     [PARTNER_NONE] {
-        (s32) "なし",
+        SCRIPT_CAST("なし"),
         0,
         MSG_NONE,
         MSG_NONE,

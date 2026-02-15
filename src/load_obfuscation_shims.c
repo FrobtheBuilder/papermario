@@ -6,9 +6,9 @@
 extern s8 obfuscated_obfuscation_shims_ROM_START[];
 extern s8 obfuscated_obfuscation_shims_VRAM[];
 
-#ifdef SHIFT
+#if defined(SHIFT) || defined(PLATFORM_PC)
 void load_obfuscation_shims(void) {
-    // no-op since in shiftable builds, we bypass the obfuscation
+    // no-op since in shiftable/PC builds, we bypass the obfuscation
 }
 #else
 void load_obfuscation_shims(void) {

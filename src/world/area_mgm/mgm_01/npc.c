@@ -118,7 +118,7 @@ void N(appendGfx_score_display) (void* renderData) {
     }
 
     if (data->scoreWindowPosX < SCREEN_WIDTH + 1) {
-        draw_box(0, WINDOW_STYLE_9, data->scoreWindowPosX, 28, 0, 72, 20, 255, 0, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr, nullptr, SCREEN_WIDTH, SCREEN_HEIGHT, nullptr);
+        draw_box(0, WSTYLE(WINDOW_STYLE_9), data->scoreWindowPosX, 28, 0, 72, 20, 255, 0, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr, nullptr, SCREEN_WIDTH, SCREEN_HEIGHT, nullptr);
         hid = data->hudElemID;
         hud_element_set_render_pos(hid, data->scoreWindowPosX + 15, 39);
         hud_element_draw_clipped(hid);

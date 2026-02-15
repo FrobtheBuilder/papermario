@@ -70,6 +70,11 @@ void spr_swizzle_anim_offsets(s32 arg0, s32 base, void* spriteData) {
 }
 
 SpriteAnimData* spr_load_sprite(s32 idx, s32 isPlayerSprite, s32 useTailAlloc) {
+#ifdef PLATFORM_PC
+    // On PC, sprite data is loaded from ROM via DMA (no-op).
+    // Return NULL so callers skip rendering.
+    return NULL;
+#endif
     SpriteAnimData* animData;
     s32 base;
     s32 i;

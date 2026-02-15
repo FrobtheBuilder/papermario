@@ -1,5 +1,13 @@
 #ifndef _H_INCLUDE_ASSET
 
+#ifdef PLATFORM_PC
+// On PC, INCLUDE_IMG/INCLUDE_PAL/INCLUDE_RAW just declare empty external symbols.
+// The actual image data will be loaded at runtime from files, not embedded in the binary.
+#define INCLUDE_IMG(FILENAME, SYMBOLNAME) extern unsigned char SYMBOLNAME[];
+#define INCLUDE_PAL(FILENAME, SYMBOLNAME) extern unsigned short SYMBOLNAME[];
+#define INCLUDE_RAW(FILENAME, SYMBOLNAME) extern unsigned char SYMBOLNAME[];
+#else
+
 #define ASTRINGIFY_(x) #x
 #define ASTRINGIFY(x) ASTRINGIFY_(x)
 
@@ -52,4 +60,5 @@
     )
 
 
+#endif /* !PLATFORM_PC */
 #endif // _H_INCLUDE_ASSET

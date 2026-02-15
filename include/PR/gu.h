@@ -187,11 +187,16 @@ extern int guRandom(void);
 /*
  *  Math functions
  */
+#ifdef PLATFORM_PC
+// On PC these are provided by the standard C math library
+#include <math.h>
+#else
 extern float sinf(float angle);
 extern float cosf(float angle);
+extern float sqrtf(float value);
+#endif
 extern signed short sins (unsigned short angle);
 extern signed short coss (unsigned short angle);
-extern float sqrtf(float value);
 #ifdef __sgi
 #pragma intrinsic(sqrtf);
 #endif

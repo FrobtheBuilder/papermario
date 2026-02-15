@@ -764,7 +764,7 @@ void spr_load_player_sprite(s32 spriteIndex) {
     SpriteAnimData* playerSprite = spr_load_sprite(spriteIndex - 1, true, false);
 
     PlayerSprites[spriteIndex - 1] = playerSprite;
-    if (MaxPlayerSpriteComponents < playerSprite->maxComponents) {
+    if (playerSprite != NULL && MaxPlayerSpriteComponents < playerSprite->maxComponents) {
         MaxPlayerSpriteComponents = playerSprite->maxComponents;
     }
 }
@@ -783,20 +783,6 @@ void spr_init_sprites(s32 playerSpriteSet) {
     }
 
     MaxPlayerSpriteComponents = 0;
-
-    if (gGameStatusPtr->peachFlags & PEACH_FLAG_IS_PEACH) {
-        playerSpriteSet = PLAYER_SPRITES_PEACH_WORLD;
-    }
-
-    loadedFlags = (&PlayerSpriteSets[playerSpriteSet])->initiallyLoaded;
-    spr_init_player_raster_cache((&PlayerSpriteSets[playerSpriteSet])->cacheSize,
-                  (&PlayerSpriteSets[playerSpriteSet])->rasterSize);
-
-    for (i = 1; i <= SPR_Peach3; i++) {
-        if ((loadedFlags >> i) & 1) {
-            spr_load_player_sprite(i);
-        }
-    }
 
     for (i = 0; i < ARRAY_COUNT(CurPlayerAnimInfo); i++) {
         CurPlayerAnimInfo[i].componentList = nullptr;
@@ -817,6 +803,26 @@ void spr_init_sprites(s32 playerSpriteSet) {
     }
 
     spr_init_quad_cache();
+
+#ifdef PLATFORM_PC
+    // Skip loading sprite data from ROM - not available on PC yet.
+    // All state arrays are initialized above, but no sprites are loaded.
+    return;
+#endif
+
+    if (gGameStatusPtr->peachFlags & PEACH_FLAG_IS_PEACH) {
+        playerSpriteSet = PLAYER_SPRITES_PEACH_WORLD;
+    }
+
+    loadedFlags = (&PlayerSpriteSets[playerSpriteSet])->initiallyLoaded;
+    spr_init_player_raster_cache((&PlayerSpriteSets[playerSpriteSet])->cacheSize,
+                  (&PlayerSpriteSets[playerSpriteSet])->rasterSize);
+
+    for (i = 1; i <= SPR_Peach3; i++) {
+        if ((loadedFlags >> i) & 1) {
+            spr_load_player_sprite(i);
+        }
+    }
 }
 
 void spr_render_init(void) {
@@ -1060,10 +1066,20 @@ s32 spr_load_npc_sprite(s32 animID, u32* extraAnimList) {
         header = spr_load_sprite(spriteIndex - 1, false, useTailAlloc);
         SpriteInstances[listIndex].spriteData = header;
         NpcSpriteData[spriteIndex] = header;
+#ifdef PLATFORM_PC
+        if (header == NULL) {
+            return -1;
+        }
+#endif
         if (extraAnimList != nullptr) {
             spr_load_npc_extra_anims(header, extraAnimList);
         }
     }
+#ifdef PLATFORM_PC
+    if (header == NULL) {
+        return -1;
+    }
+#endif
     compList = spr_allocate_components(header->maxComponents);
     SpriteInstances[listIndex].componentList = compList;
     while (*compList != PTR_LIST_END) {

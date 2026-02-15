@@ -1,5 +1,11 @@
 #ifndef _STDLIB_H
 #define _STDLIB_H
+
+#ifdef PLATFORM_PC
+// On PC, use the system stdlib instead of N64-specific one
+#undef _STDLIB_H
+#include_next <stdlib.h>
+#else
 /*
 		stdlib.h
 */
@@ -78,4 +84,5 @@ void exit(int);
 
 void abort(void);
 
+#endif /* !PLATFORM_PC */
 #endif

@@ -5,7 +5,7 @@
 
 extern s32 obfuscated_battle_heap_create[];
 
-#ifdef SHIFT
+#if defined(SHIFT) || defined(PLATFORM_PC)
 void battle_heap_create_obfuscated(void) {
     battle_heap_create();
 }

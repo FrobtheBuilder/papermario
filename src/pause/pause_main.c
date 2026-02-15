@@ -22,7 +22,7 @@ void pause_draw_cursor(MenuPanel* menu, s32 baseX, s32 baseY, s32 width, s32 hei
 
 BSS s32 gPauseHeldButtons;
 BSS s32 gPausePressedButtons;
-BSS s32 gPauseCurrentDescMsg;
+BSS MsgID gPauseCurrentDescMsg;
 BSS HudScript* gPauseCurrentDescIconScript;
 BSS HudElemID gPauseCursorHID;
 BSS s8 gPauseMenuCurrentTab;

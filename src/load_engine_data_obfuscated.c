@@ -4,7 +4,7 @@
 
 extern u8 obfuscated_load_engine_data[];
 
-#ifdef SHIFT
+#if defined(SHIFT) || defined(PLATFORM_PC)
 void load_engine_data(void);
 void load_engine_data_obfuscated(void) {
     load_engine_data();

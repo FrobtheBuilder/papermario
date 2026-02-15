@@ -339,7 +339,7 @@ void pause_stats_draw_contents(MenuPanel* menu, s32 baseX, s32 baseY, s32 width,
     bootsLevel = gPlayerData.bootsLevel;
     hammerLevel = gPlayerData.hammerLevel;
     level = gPlayerData.level;
-    draw_box(4, &gPauseWS_10, baseX + 7, baseY + 12, 0, PAUSE_BOX_WIDTH + (level >= 10 ? 8 : 0), 17, 255, 0,
+    draw_box(4, WSTYLE_PTR(&gPauseWS_10), baseX + 7, baseY + 12, 0, PAUSE_BOX_WIDTH + (level >= 10 ? 8 : 0), 17, 255, 0,
         0.0f, 0.0f, 0.0f, 0.0f, 0.0f, nullptr, nullptr, nullptr, SCREEN_WIDTH, SCREEN_HEIGHT, nullptr);
 
     // draw level

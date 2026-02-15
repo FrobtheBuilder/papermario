@@ -64,6 +64,13 @@ u16 blend_background_channel(u16 arg0, s32 arg1, s32 alpha) {
 }
 
 void appendGfx_background_texture(void) {
+#ifdef PLATFORM_PC
+    // On PC, background image data is not loaded (DMA is a no-op).
+    // Skip rendering to avoid division by zero on zero dimensions.
+    if (gGameStatusPtr->backgroundMaxX == 0 || gGameStatusPtr->backgroundMaxY == 0) {
+        return;
+    }
+#endif
     Camera* cam = &gCameras[gCurrentCameraID];
     u16 flags = 0;
     s32 fogR, fogG, fogB, fogA;

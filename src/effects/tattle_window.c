@@ -235,7 +235,7 @@ void func_E00D8630(EffectInstance* effect) {
     }
 
     draw_box(
-        flags, &TattleWindowStyle,
+        flags, WSTYLE_PTR(&TattleWindowStyle),
         (data->pos.x + data->offset.x) - 75.0f,
         (data->pos.y + data->offset.y) - 53.0f,
         data->pos.z,
