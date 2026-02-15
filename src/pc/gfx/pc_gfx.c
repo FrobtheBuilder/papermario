@@ -91,7 +91,9 @@ void gfx_destroy_context(GfxContext* ctx) {
 void gfx_begin_frame(GfxContext* ctx) {
     if (!ctx) return;
 
-    // Clear framebuffer
+    // Ensure depth mask is enabled so glClear can write to depth buffer
+    glDepthMask(GL_TRUE);
+    glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 

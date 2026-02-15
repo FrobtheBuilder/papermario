@@ -184,33 +184,32 @@ void platform_run_main_loop(void) {
 
             totalFrames++;
 
-            // Auto-screenshot burst to catch a rendered frame (remove later)
-            if (totalFrames >= 900 && totalFrames <= 905) screenshotRequested = TRUE;
-
-            // F12 screenshot: save as PPM (raw image)
+            // F12 screenshot: save as BMP via SDL
             if (screenshotRequested) {
                 screenshotRequested = FALSE;
                 s32 w = g_platform.config.windowWidth;
                 s32 h = g_platform.config.windowHeight;
-                u8* pixels = (u8*)malloc(w * h * 3);
-                if (pixels) {
-                    // Read from front buffer (what's currently displayed)
-                    glReadBuffer(GL_FRONT);
-                    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-                    glReadBuffer(GL_BACK);
-                    char fname[64];
-                    snprintf(fname, sizeof(fname), "screenshot_%llu.ppm", (unsigned long long)totalFrames);
-                    FILE* f = fopen(fname, "wb");
-                    if (f) {
-                        fprintf(f, "P6\n%d %d\n255\n", w, h);
-                        // Write rows bottom-to-top (OpenGL origin is bottom-left)
-                        for (s32 row = h - 1; row >= 0; row--) {
-                            fwrite(pixels + row * w * 3, 1, w * 3, f);
+                SDL_Surface* surface = SDL_CreateRGBSurface(0, w, h, 24,
+                    0x000000FF, 0x0000FF00, 0x00FF0000, 0);
+                if (surface) {
+                    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, surface->pixels);
+                    // Flip vertically (OpenGL origin is bottom-left)
+                    u8* row = (u8*)malloc(surface->pitch);
+                    if (row) {
+                        for (s32 y = 0; y < h / 2; y++) {
+                            u8* top = (u8*)surface->pixels + y * surface->pitch;
+                            u8* bot = (u8*)surface->pixels + (h - 1 - y) * surface->pitch;
+                            memcpy(row, top, surface->pitch);
+                            memcpy(top, bot, surface->pitch);
+                            memcpy(bot, row, surface->pitch);
                         }
-                        fclose(f);
-                        fprintf(stderr, "[PC] Screenshot saved to %s\n", fname);
+                        free(row);
                     }
-                    free(pixels);
+                    char fname[64];
+                    snprintf(fname, sizeof(fname), "screenshot_%llu.bmp", (unsigned long long)totalFrames);
+                    SDL_SaveBMP(surface, fname);
+                    SDL_FreeSurface(surface);
+                    fprintf(stderr, "[PC] Screenshot saved to %s\n", fname);
                 }
             }
 

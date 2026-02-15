@@ -146,8 +146,11 @@ set(INCLUDE_DIRS
     ${GLEW_INCLUDE_DIRS}
 )
 
+# Generated asset data (PNG -> N64 raw format)
+file(GLOB GENERATED_ASSET_SOURCES ${CMAKE_SOURCE_DIR}/src/pc/gen/asset_data_*.c)
+
 # Create executable
-add_executable(papermario ${PC_SOURCES} ${N64_MATH_SOURCES} ${GAME_SOURCES})
+add_executable(papermario ${PC_SOURCES} ${N64_MATH_SOURCES} ${GAME_SOURCES} ${GENERATED_ASSET_SOURCES})
 
 target_include_directories(papermario PRIVATE ${INCLUDE_DIRS})
 

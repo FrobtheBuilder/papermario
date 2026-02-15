@@ -789,13 +789,49 @@ static void flush_triangles(void) {
 
     glUseProgram(sTriProgram);
 
-    // Simple alpha blending - depth test/fog from otherModeL TODO
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // --- Depth testing from otherModeL ---
+    u32 mode = sTriBatchOtherModeL;
+    s32 zCmp = (mode & 0x0010) != 0;  // Z_CMP
+    s32 zUpd = (mode & 0x0020) != 0;  // Z_UPD
+    u32 zMode = (mode >> 10) & 0x3;   // ZMODE (0=OPA, 1=INTER, 2=XLU, 3=DEC)
 
-    // Fog disabled for now (uniforms still present in shader but unused)
-    glUniform4f(sTriFogColorLoc, 0.0f, 0.0f, 0.0f, 0.0f);
-    glUniform1i(sTriUseFogLoc, 0);
+    if (zCmp) {
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LEQUAL);
+    } else {
+        glDisable(GL_DEPTH_TEST);
+    }
+    glDepthMask(zUpd ? GL_TRUE : GL_FALSE);
+
+    // Decal mode: use polygon offset to avoid z-fighting
+    if (zMode == 3) {
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(-1.0f, -1.0f);
+    } else {
+        glDisable(GL_POLYGON_OFFSET_FILL);
+    }
+
+    // --- Alpha blending ---
+    s32 forceBl = (mode & 0x4000) != 0;  // FORCE_BL
+    s32 zModeXlu = (zMode == 2);         // ZMODE_XLU
+
+    if (forceBl || zModeXlu) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    } else {
+        // Opaque: still need alpha test behavior (discard fully transparent)
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
+
+    // --- Fog ---
+    s32 useFog = (sRSP.geometryMode & G_FOG) != 0;
+    if (useFog) {
+        glUniform4f(sTriFogColorLoc, sRSP.fogR, sRSP.fogG, sRSP.fogB, 1.0f);
+        glUniform1i(sTriUseFogLoc, 1);
+    } else {
+        glUniform1i(sTriUseFogLoc, 0);
+    }
 
     // Set texture uniforms
     if (sTriBatchTextured && sTriBatchTexId != 0) {
@@ -833,8 +869,11 @@ static void flush_triangles(void) {
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 
-    // Restore blend state
+    // Restore GL state
     glDisable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_POLYGON_OFFSET_FILL);
 
     sTriBatchCount = 0;
     sTriBatchTextured = FALSE;
@@ -1144,6 +1183,13 @@ static void draw_fill_rect(s32 ulx, s32 uly, s32 lrx, s32 lry, f32 r, f32 g, f32
         x1, y0,  // top-right
     };
 
+    // Fill rects are 2D - disable depth so they don't occlude 3D geometry
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     glUseProgram(sRectProgram);
     glUniform4f(sRectColorLoc, r, g, b, a);
 
@@ -1152,6 +1198,9 @@ static void draw_fill_rect(s32 ulx, s32 uly, s32 lrx, s32 lry, f32 r, f32 g, f32
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verts), verts);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
+
+    glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
 }
 
 // ============================================================================
@@ -1514,7 +1563,10 @@ static void rdp_process_dl(Gfx* dl, s32 maxCommands) {
                                         sTriBatchCombColor, sTriBatchCombAlpha);
                 }
 
-                // Emit two triangles as a quad (disable depth for 2D)
+                // Force depth off for 2D textured rects
+                sTriBatchOtherModeL = sRDP.otherModeL & ~0x0030;  // Clear Z_CMP and Z_UPD
+
+                // Emit two triangles as a quad
                 f32* dst = &sTriBatch[sTriBatchCount * 3 * TRI_VERTEX_FLOATS];
 
                 // Triangle 1: UL, UR, LR
