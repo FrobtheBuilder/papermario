@@ -56,6 +56,7 @@ set(PC_SOURCES
     src/pc/platform/effect_stubs.c
     src/pc/platform/shim_stubs.c
     src/pc/platform/asset_stubs.c
+    src/pc/platform/rom_reader.c
     src/pc/gfx/pc_gfx.c
     src/pc/gfx/rdp_translator.c
     src/pc/input/pc_input.c
@@ -146,11 +147,15 @@ set(INCLUDE_DIRS
     ${GLEW_INCLUDE_DIRS}
 )
 
-# Generated asset data (PNG -> N64 raw format)
+# Generated asset data (PNG -> N64 raw format) and ROM offset table
 file(GLOB GENERATED_ASSET_SOURCES ${CMAKE_SOURCE_DIR}/src/pc/gen/asset_data_*.c)
+set(GENERATED_SOURCES
+    ${GENERATED_ASSET_SOURCES}
+    src/pc/gen/rom_offsets.c
+)
 
 # Create executable
-add_executable(papermario ${PC_SOURCES} ${N64_MATH_SOURCES} ${GAME_SOURCES} ${GENERATED_ASSET_SOURCES})
+add_executable(papermario ${PC_SOURCES} ${N64_MATH_SOURCES} ${GAME_SOURCES} ${GENERATED_SOURCES})
 
 target_include_directories(papermario PRIVATE ${INCLUDE_DIRS})
 

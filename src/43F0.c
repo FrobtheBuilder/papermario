@@ -438,9 +438,22 @@ void copy_matrix(Matrix4f src, Matrix4f dest) {
 // maybe u32
 u32 dma_copy(Addr romStart, Addr romEnd, void* vramDest) {
 #ifdef PLATFORM_PC
-    // On PC, ROM addresses are meaningless linker symbols.
-    // ROM data access will be replaced by file-based asset loading.
-    (void)romStart; (void)romEnd; (void)vramDest;
+    // On PC, the Addr linker symbols are stubs at arbitrary addresses.
+    // Look up the actual ROM file offset from the generated table, then
+    // read the data from the loaded baserom.z64.
+    extern u32 pc_rom_lookup_offset(const void* symbol_addr);
+    extern void pc_rom_read(u32 rom_offset, void* dest, u32 size);
+
+    u32 startOfs = pc_rom_lookup_offset(romStart);
+    u32 endOfs   = pc_rom_lookup_offset(romEnd);
+
+    if (startOfs != 0xFFFFFFFF && endOfs != 0xFFFFFFFF && endOfs > startOfs) {
+        u32 length = endOfs - startOfs;
+        extern void pc_rom_debug_dma(u32 start, u32 end, u32 len);
+        pc_rom_debug_dma(startOfs, endOfs, length);
+        pc_rom_read(startOfs, vramDest, length);
+        return length;
+    }
     return 0;
 #else
     u32 length = romEnd - romStart;

@@ -18,6 +18,9 @@
 // N64 Mtx conversion (from gu_math_pc.c)
 extern void guMtxL2F(float mf[4][4], Mtx *m);
 
+// Set by rdp_process_display_list so the main loop knows a DL was rendered this tick.
+int g_rdp_frame_rendered = 0;
+
 // ============================================================================
 // RSP State (geometry pipeline)
 // ============================================================================
@@ -1867,6 +1870,7 @@ void rdp_init(void) {
 void rdp_process_display_list(Gfx* dl, u32 sizeBytes) {
     if (!dl) return;
 
+    g_rdp_frame_rendered = 1;
     sFrameNum++;
 
     // Initialize shaders on first call

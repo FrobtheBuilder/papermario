@@ -6,7 +6,13 @@
 #include <GL/glew.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <signal.h>
+#include <direct.h>   // _mkdir on Windows
+#include <windows.h>  // FindFirstFileA, DeleteFileA
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "../stb_image_write.h"
 
 // Forward declarations from game code (src/main.c, src/main_loop.c)
 // These are the real game functions - on PC, obfuscation is bypassed
@@ -19,6 +25,10 @@ extern void gfxRetrace_Callback(s32 gfxTaskNum);
 extern void pc_set_controller_connected(void);
 extern u32 osGetCount(void);
 
+// ROM reader (src/pc/platform/rom_reader.c)
+extern s32 pc_rom_init(void);
+extern void pc_rom_shutdown(void);
+
 // Game globals
 extern u32 gRandSeed;
 
@@ -29,6 +39,73 @@ static struct {
     b32 running;
     PlatformConfig config;
 } g_platform;
+
+// Automated screenshot system
+// Usage: --screenshot-frames 100,500,900 [--screenshot-dir path]
+// Saves BMP files to $TEMP/pm_screenshots/ (or custom dir), then auto-quits.
+#define MAX_SCREENSHOT_FRAMES 64
+static struct {
+    u32 frames[MAX_SCREENSHOT_FRAMES];
+    u32 count;
+    u32 nextIdx;
+    char dir[512];
+} g_screenshots;
+
+static void screenshot_ensure_dir(void) {
+    if (g_screenshots.dir[0] == '\0') {
+        const char* tmp = getenv("TEMP");
+        if (!tmp) tmp = getenv("TMP");
+        if (!tmp) tmp = "/tmp";
+        snprintf(g_screenshots.dir, sizeof(g_screenshots.dir),
+                 "%s/pm_screenshots", tmp);
+    }
+    _mkdir(g_screenshots.dir); // ignore error if exists
+}
+
+// Delete old frame_*.png from screenshot dir so stale results can't mislead.
+static void screenshot_clean_dir(void) {
+    char pattern[768];
+    snprintf(pattern, sizeof(pattern), "%s/frame_*.png", g_screenshots.dir);
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(pattern, &fd);
+    if (h == INVALID_HANDLE_VALUE) return;
+    do {
+        char path[768];
+        snprintf(path, sizeof(path), "%s/%s", g_screenshots.dir, fd.cFileName);
+        DeleteFileA(path);
+    } while (FindNextFileA(h, &fd));
+    FindClose(h);
+}
+
+static void screenshot_save(u32 frameNum) {
+    screenshot_ensure_dir();
+    s32 w = g_platform.config.windowWidth;
+    s32 h = g_platform.config.windowHeight;
+    s32 stride = w * 3;
+    u8* pixels = (u8*)malloc(stride * h);
+    if (!pixels) return;
+
+    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+
+    // Flip vertically (OpenGL origin is bottom-left)
+    u8* row = (u8*)malloc(stride);
+    if (row) {
+        for (s32 y = 0; y < h / 2; y++) {
+            u8* top = pixels + y * stride;
+            u8* bot = pixels + (h - 1 - y) * stride;
+            memcpy(row, top, stride);
+            memcpy(top, bot, stride);
+            memcpy(bot, row, stride);
+        }
+        free(row);
+    }
+
+    char path[768];
+    snprintf(path, sizeof(path), "%s/frame_%04u.png", g_screenshots.dir, frameNum);
+    stbi_write_png(path, w, h, 3, pixels, stride);
+    free(pixels);
+    fprintf(stderr, "[SCREENSHOT] %s\n", path);
+}
 
 void platform_init(PlatformConfig* config) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0) {
@@ -157,6 +234,12 @@ void platform_run_main_loop(void) {
     u64 totalFrames = 0;
     s32 screenshotRequested = FALSE;
 
+    // Flag set by rdp_process_display_list when a DL is rendered.
+    // The game only renders every other retrace callback (30 FPS render on
+    // 60 FPS ticks). On non-render ticks, skip the buffer swap so the
+    // previous frame stays on screen instead of flashing black.
+    extern int g_rdp_frame_rendered;
+
     while (g_platform.running) {
         // Handle SDL events
         SDL_Event event;
@@ -176,45 +259,37 @@ void platform_run_main_loop(void) {
         u64 elapsed = currentTime - lastFrameTime;
 
         if (elapsed >= FRAME_TIME_US) {
-            // Clear the OpenGL framebuffer
+            // Clear back buffer (invisible until swapped)
             gfx_begin_frame(g_platform.gfxContext);
 
-            // Run the game's retrace callback (same as N64 VBlank handler)
+            // Run the game's retrace callback (same as N64 VBlank handler).
+            // On render ticks it submits DLs and sets g_rdp_frame_rendered.
+            g_rdp_frame_rendered = 0;
             gfxRetrace_Callback(0);
 
             totalFrames++;
 
-            // F12 screenshot: save as BMP via SDL
-            if (screenshotRequested) {
-                screenshotRequested = FALSE;
-                s32 w = g_platform.config.windowWidth;
-                s32 h = g_platform.config.windowHeight;
-                SDL_Surface* surface = SDL_CreateRGBSurface(0, w, h, 24,
-                    0x000000FF, 0x0000FF00, 0x00FF0000, 0);
-                if (surface) {
-                    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, surface->pixels);
-                    // Flip vertically (OpenGL origin is bottom-left)
-                    u8* row = (u8*)malloc(surface->pitch);
-                    if (row) {
-                        for (s32 y = 0; y < h / 2; y++) {
-                            u8* top = (u8*)surface->pixels + y * surface->pitch;
-                            u8* bot = (u8*)surface->pixels + (h - 1 - y) * surface->pitch;
-                            memcpy(row, top, surface->pitch);
-                            memcpy(top, bot, surface->pitch);
-                            memcpy(bot, row, surface->pitch);
-                        }
-                        free(row);
+            if (g_rdp_frame_rendered) {
+                // Auto-screenshot at specified frames
+                if (g_screenshots.nextIdx < g_screenshots.count &&
+                    totalFrames >= g_screenshots.frames[g_screenshots.nextIdx]) {
+                    screenshot_save((u32)totalFrames);
+                    g_screenshots.nextIdx++;
+                    if (g_screenshots.nextIdx >= g_screenshots.count) {
+                        g_platform.running = FALSE; // quit after last screenshot
                     }
-                    char fname[64];
-                    snprintf(fname, sizeof(fname), "screenshot_%llu.bmp", (unsigned long long)totalFrames);
-                    SDL_SaveBMP(surface, fname);
-                    SDL_FreeSurface(surface);
-                    fprintf(stderr, "[PC] Screenshot saved to %s\n", fname);
                 }
-            }
 
-            // Swap OpenGL buffers
-            gfx_end_frame(g_platform.gfxContext);
+                // F12 manual screenshot
+                if (screenshotRequested) {
+                    screenshotRequested = FALSE;
+                    screenshot_save((u32)totalFrames);
+                }
+
+                // Only swap when we rendered something — keeps the previous
+                // frame visible on non-render ticks instead of flashing black.
+                gfx_end_frame(g_platform.gfxContext);
+            }
 
             lastFrameTime = currentTime;
             frameCount++;
@@ -262,8 +337,47 @@ int main(int argc, char* argv[]) {
             config.windowWidth = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--height") == 0 && i + 1 < argc) {
             config.windowHeight = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--screenshot-frames") == 0 && i + 1 < argc) {
+            // Parse comma-separated frame numbers: --screenshot-frames 100,500,900
+            char buf[1024];
+            strncpy(buf, argv[++i], sizeof(buf) - 1);
+            buf[sizeof(buf) - 1] = '\0';
+            char* token = strtok(buf, ",");
+            while (token && g_screenshots.count < MAX_SCREENSHOT_FRAMES) {
+                g_screenshots.frames[g_screenshots.count++] = (u32)atoi(token);
+                token = strtok(NULL, ",");
+            }
+            // Sort ascending (simple insertion sort)
+            for (u32 a = 1; a < g_screenshots.count; a++) {
+                u32 key = g_screenshots.frames[a];
+                u32 b = a;
+                while (b > 0 && g_screenshots.frames[b - 1] > key) {
+                    g_screenshots.frames[b] = g_screenshots.frames[b - 1];
+                    b--;
+                }
+                g_screenshots.frames[b] = key;
+            }
+        } else if (strcmp(argv[i], "--screenshot-dir") == 0 && i + 1 < argc) {
+            strncpy(g_screenshots.dir, argv[++i], sizeof(g_screenshots.dir) - 1);
+            g_screenshots.dir[sizeof(g_screenshots.dir) - 1] = '\0';
         }
     }
+
+    // Log screenshot plan
+    if (g_screenshots.count > 0) {
+        screenshot_ensure_dir();
+        fprintf(stderr, "[PC] Screenshot dir: %s\n", g_screenshots.dir);
+        fprintf(stderr, "[PC] Will screenshot at frames:");
+        for (u32 i = 0; i < g_screenshots.count; i++) {
+            fprintf(stderr, " %u", g_screenshots.frames[i]);
+        }
+        fprintf(stderr, " (auto-quit after last)\n");
+        screenshot_clean_dir();
+        fflush(stderr);
+    }
+
+    // Load ROM image (must happen before game init so DMA loads work)
+    pc_rom_init();
 
     // Initialize platform (SDL, OpenGL, input, audio)
     platform_init(&config);
@@ -276,6 +390,7 @@ int main(int argc, char* argv[]) {
 
     // Cleanup
     platform_shutdown();
+    pc_rom_shutdown();
 
     return 0;
 }

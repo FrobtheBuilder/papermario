@@ -77,7 +77,14 @@ void state_init_logos(void) {
 
     romEnd = logos_ROM_END;
     romStart = logos_ROM_START;
+#ifdef PLATFORM_PC
+    {
+        extern u32 pc_rom_segment_size(const void*, const void*);
+        gLogosImages = heap_malloc(pc_rom_segment_size(romStart, romEnd));
+    }
+#else
     gLogosImages = heap_malloc(romEnd - romStart);
+#endif
     dma_copy(romStart, romEnd, gLogosImages);
 
     gLogosImage1 = gLogosImages + 0x0;

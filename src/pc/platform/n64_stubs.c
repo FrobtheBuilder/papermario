@@ -117,9 +117,8 @@ void nuGfxTaskStart(Gfx *gfxList_ptr, u32 gfxListSize, u32 ucode, u32 flag) {
 // ============================================================================
 
 void nuPiReadRom(u32 rom_addr, void* buf_ptr, u32 size) {
-    // TODO: Read from extracted ROM data files
-    (void)rom_addr;
-    memset(buf_ptr, 0, size);
+    extern void pc_rom_read(u32 rom_offset, void* dest, u32 size);
+    pc_rom_read(rom_addr, buf_ptr, size);
 }
 
 void nuPiReadRomOverlay(NUPiOverlaySegment* segment) {
